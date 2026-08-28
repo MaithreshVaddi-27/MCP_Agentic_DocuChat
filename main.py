@@ -40,6 +40,9 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL")
 DOCUMENT_PATH = os.getenv("DOCUMENT_PATH")
 
+if not GEMINI_MODEL:
+    raise ValueError("Missing GEMINI_MODEL")
+
 if not GEMINI_API_KEY:
     raise ValueError("Missing GEMINI_API_KEY")
 

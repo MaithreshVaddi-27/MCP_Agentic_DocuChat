@@ -91,7 +91,7 @@ class RagBackend:
         self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5").strip()
         self.embedding_model_online = os.getenv("EMBEDDING_MODEL_ONLINE", "models/text-embedding-004").strip()
 
-        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
         self.ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:4b").strip()
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()
         self.ollama_keep_alive = os.getenv("OLLAMA_KEEP_ALIVE", "10m").strip()
