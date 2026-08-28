@@ -360,4 +360,4 @@ This removes conversations, automatic memories, cache entries, and feedback. It 
 
 ## License
 
-This project is intended for educational, research, and learning purposes.
+MIT — see [LICENSE](LICENSE). Intended for educational, research, and learning purposes.
