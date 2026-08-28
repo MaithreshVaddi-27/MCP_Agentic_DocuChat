@@ -39,6 +39,7 @@ MCP_Agentic_DocuChat/
 ├── persistent_memory.py     # SQLite memory, cache, and feedback
 ├── ollama_utils.py          # Ollama and GPU health checks
 ├── prompt_engineering.py    # Context, prompt, and repair-loop templates
+├── llamacpp_utils.py        # llama.cpp server health checks
 ├── gradio_app.py            # Gradio interface and launch options
 ├── requirements.txt
 ├── .env.example
@@ -46,7 +47,9 @@ MCP_Agentic_DocuChat/
 ├── data/
 │   └── .gitkeep
 └── tests/
-    └── test_persistent_memory.py
+    ├── test_persistent_memory.py
+    ├── test_backend_fixes.py
+    └── test_ollama_utils.py
 ```
 
 Generated or private files are ignored:
@@ -56,9 +59,17 @@ Generated or private files are ignored:
 - `chroma_langchain_db/` for vectors
 - `agentic_rag_memory.sqlite3` for conversations, memories, cache, and feedback
 
+## Prerequisites
+
+- Python 3.10+
+- Git
+- A Gemini API key (for the default provider), and/or Ollama or llama.cpp installed for local models
+
 ## Installation
 
 ```bash
+git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
+cd MCP_Agentic_DocuChat
 python3 -m venv avenv
 source avenv/bin/activate
 python -m pip install --upgrade pip
@@ -68,6 +79,8 @@ python -m pip install -r requirements.txt
 On Windows PowerShell:
 
 ```powershell
+git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
+cd MCP_Agentic_DocuChat
 python -m venv avenv
 avenv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -286,7 +299,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 Run a syntax check:
 
 ```bash
-python -m py_compile main.py rag_backend.py persistent_memory.py ollama_utils.py gradio_app.py
+python -m py_compile main.py rag_backend.py persistent_memory.py ollama_utils.py llamacpp_utils.py prompt_engineering.py gradio_app.py
 ```
 
 A full end-to-end test requires installed dependencies, a valid `.env`, an accessible PDF, and either a working Gemini key or a running Ollama server with the selected model.
