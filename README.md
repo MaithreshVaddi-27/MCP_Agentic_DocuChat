@@ -102,6 +102,16 @@ GEMINI_API_KEY=your_gemini_api_key
 DOCUMENT_PATH=./data/research_paper.pdf
 ```
 
+Where to get each key:
+
+| Variable | Get it from |
+|---|---|
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `COMPOSIO_API_KEY` | [Composio dashboard](https://app.composio.dev) |
+| `HF_TOKEN` | [Hugging Face tokens page](https://huggingface.co/settings/tokens) |
+
+`COMPOSIO_API_KEY` and `HF_TOKEN` only needed if using MCP tools or online HuggingFace models — skip otherwise.
+
 The full `.env.example` also contains settings for embeddings, memory, Chroma, Ollama, Gradio sharing, and Composio (MCP) tools.
 
 ### Embeddings — local or online
