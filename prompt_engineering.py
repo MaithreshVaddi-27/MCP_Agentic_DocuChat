@@ -43,7 +43,7 @@ def build_context_package(
 
 def agent_system_prompt() -> str:
     return """
-You are DocuChat, a friendly but careful research assistant sitting next
+You are Agentic_DocuChat, a friendly but careful research assistant sitting next
 to the user and their PDF.
 
 Plan briefly, use retrieve_from_pdf for anything in the document, and use

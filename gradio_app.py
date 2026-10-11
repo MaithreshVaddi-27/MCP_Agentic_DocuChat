@@ -46,7 +46,7 @@ THEME_TOGGLE_JS = """
 () => {
   const root = document.documentElement;
   const isDark = root.classList.toggle('dark');
-  try { localStorage.setItem('docuchat-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+  try { localStorage.setItem('agentic-docuchat-theme', isDark ? 'dark' : 'light'); } catch (e) {}
   return isDark;
 }
 """
@@ -164,10 +164,10 @@ def export_chat(history: list[dict] | None) -> str | None:
         return None
     lines = []
     for turn in history:
-        role = "You" if turn.get("role") == "user" else "DocuChat"
+        role = "You" if turn.get("role") == "user" else "Agentic_DocuChat"
         lines.append(f"{role}: {turn.get('content', '')}")
     text = "\n\n".join(lines)
-    path = Path(tempfile.gettempdir()) / "docuchat-transcript.txt"
+    path = Path(tempfile.gettempdir()) / "agentic-docuchat-transcript.txt"
     path.write_text(text, encoding="utf-8")
     return str(path)
 
@@ -229,7 +229,7 @@ def save_feedback(user_id: str, rating: str):
 # --------------------------------------------------------------- launch ---
 
 def _launch():
-    parser = argparse.ArgumentParser(description="Agentic RAG DocuChat Gradio app")
+    parser = argparse.ArgumentParser(description="Agentic_DocuChat Gradio app")
     parser.add_argument("--share", action="store_true", help="Create a temporary public Gradio URL")
     parser.add_argument("--no-share", action="store_true", help="Disable public sharing")
     args = parser.parse_args()
@@ -247,9 +247,9 @@ def _launch():
 
 # ------------------------------------------------------------------- UI ---
 
-with gr.Blocks(title="DocuChat", theme=gr.themes.Base(primary_hue="blue", neutral_hue="slate")) as demo:
+with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue", neutral_hue="slate")) as demo:
     with gr.Row():
-        gr.Markdown("## DocuChat\nAsk questions about a PDF using a local llama.cpp model, Gemini, or Ollama.")
+        gr.Markdown("## Agentic_DocuChat\nAsk questions about a PDF using a local llama.cpp model, Gemini, or Ollama.")
         theme_toggle = gr.Button("\U0001F319 / \u2600\ufe0f", size="sm", scale=0)
         theme_toggle.click(None, None, None, js=THEME_TOGGLE_JS)
 
@@ -303,8 +303,10 @@ with gr.Blocks(title="DocuChat", theme=gr.themes.Base(primary_hue="blue", neutra
             ask.click(answer_question, inputs=[question, user_id, provider, chatbot], outputs=chat_outputs)
             question.submit(answer_question, inputs=[question, user_id, provider, chatbot], outputs=chat_outputs)
             clear_memory.click(clear_user, inputs=user_id, outputs=response_status)
-            helpful.click(save_feedback, inputs=[user_id, gr.State("helpful")], outputs=response_status)
-            not_helpful.click(save_feedback, inputs=[user_id, gr.State("not helpful")], outputs=response_status)
+            helpful_state = gr.State("helpful")
+            not_helpful_state = gr.State("not helpful")
+            helpful.click(save_feedback, inputs=[user_id, helpful_state], outputs=response_status)
+            not_helpful.click(save_feedback, inputs=[user_id, not_helpful_state], outputs=response_status)
             copy_answer.click(None, None, None, js=COPY_JS)
             export_btn.click(export_chat, inputs=chatbot, outputs=export_btn)
 

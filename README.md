@@ -1,4 +1,4 @@
-# DocuChat — Chat With Your PDFs, Privately and With Receipts
+# Agentic_DocuChat — Chat With Your PDFs, Privately and With Receipts
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Gradio 5](https://img.shields.io/badge/gradio-5-orange)
@@ -7,7 +7,7 @@
 
 **Upload a research paper. Ask anything. Get answers that point to the exact page they came from.**
 
-DocuChat is a friendly, local-first reading companion. It reads your PDF, remembers
+Agentic_DocuChat is a friendly, local-first reading companion. It reads your PDF, remembers
 what matters to you, and answers using *your document first* — with web search only
 when the paper itself doesn't have the answer. Run it fully offline with llama.cpp
 or Ollama, or plug in Gemini when you want extra brainpower.
@@ -16,7 +16,7 @@ or Ollama, or plug in Gemini when you want extra brainpower.
 > About 10 minutes total, most of it downloads.
 
 ```
-You + PDF  ──▶  DocuChat reads & indexes  ──▶  you ask  ──▶  grounded answer + page numbers
+You + PDF  ──▶  Agentic_DocuChat reads & indexes  ──▶  you ask  ──▶  grounded answer + page numbers
                         │                                           │
               Chroma (local vectors)                    memory + cache (local SQLite)
 ```

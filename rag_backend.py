@@ -1,6 +1,6 @@
 """Agentic RAG backend — the part that reads your PDF and answers questions.
 
-Think of it like this: you hand DocuChat a paper, it files every paragraph
+Think of it like this: you hand Agentic_DocuChat a paper, it files every paragraph
 in a searchable cabinet (Chroma), and when you ask something it pulls the
 best pages, shows them to the model, and hands you an answer with page
 numbers attached.
@@ -58,7 +58,7 @@ logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
-logger = logging.getLogger("docuchat")
+logger = logging.getLogger("agentic_docuchat")
 
 
 async def _invoke_with_retry(model, payload, retries: int = 2, base_delay: float = 0.6):

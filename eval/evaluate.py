@@ -1,4 +1,4 @@
-"""How good are DocuChat's answers? This script finds out.
+"""How good are Agentic_DocuChat's answers? This script finds out.
 
 It asks 4 fixed questions (summary, methods, limitations, plus a trap
 question no PDF can answer), then scores each reply 0–1 on faithfulness
@@ -96,7 +96,7 @@ async def _run_case(backend, case: dict, provider: str) -> dict:
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate DocuChat RAG quality")
+    parser = argparse.ArgumentParser(description="Evaluate Agentic_DocuChat RAG quality")
     parser.add_argument("--document", default=os.getenv("DOCUMENT_PATH", "./data/research_paper.pdf"))
     parser.add_argument("--provider", default="llamacpp", choices=["gemini", "ollama", "llamacpp"])
     args = parser.parse_args()
