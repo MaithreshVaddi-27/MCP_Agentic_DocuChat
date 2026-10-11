@@ -2,8 +2,8 @@ import os
 import tempfile
 import unittest
 
-from persistent_memory import PersistentMemory
-from prompt_engineering import needs_grounding_repair
+from agentic_docuchat.persistent_memory import PersistentMemory
+from agentic_docuchat.prompt_engineering import needs_grounding_repair
 
 
 def _temp_db():

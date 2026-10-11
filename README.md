@@ -176,14 +176,16 @@ Aim for faithfulness **0.80+**. Full audit: `AUDIT_REPORT.md`.
 
 ```text
 MCP_Agentic_DocuChat/
-├── gradio_app.py            # Chat UI — run this
-├── rag_backend.py           # Indexing, providers, memory, cache
-├── persistent_memory.py     # Local SQLite (chats, facts, cache)
-├── prompt_engineering.py    # Evidence packs + repair loop
-├── ollama_utils.py / llamacpp_utils.py
-├── eval/evaluate.py         # DeepEval quality suite
-├── tests/                   # 9 unit tests, all passing
-├── requirements.txt / .env.example / AUDIT_REPORT.md
+├── gradio_app.py              # Run this (tiny launcher)
+├── agentic_docuchat/          # The app itself
+│   ├── app.py                 # Chat UI
+│   ├── rag_backend.py         # Indexing, providers, memory, cache
+│   ├── persistent_memory.py   # Local SQLite (chats, facts, cache)
+│   ├── prompt_engineering.py  # Evidence packs + repair loop
+│   └── ollama_utils.py / llamacpp_utils.py
+├── eval/evaluate.py           # DeepEval quality suite
+├── tests/                     # 9 unit tests, all passing
+├── pyproject.toml / requirements.txt / .env.example
 └── data/  (PDFs go in data/uploads/)
 ```
 
@@ -208,7 +210,7 @@ Clear all local memory: stop the app, delete `agentic_rag_memory.sqlite3` (chats
 
 ```bash
 python -m unittest discover -s tests -p 'test_*.py'   # Windows: "test_*.py"
-python -m py_compile rag_backend.py gradio_app.py persistent_memory.py ollama_utils.py llamacpp_utils.py prompt_engineering.py eval/evaluate.py
+python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py eval/evaluate.py
 ```
 
 End-to-end needs a PDF + one working provider (Gemini key or local server).

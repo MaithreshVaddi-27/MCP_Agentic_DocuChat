@@ -18,7 +18,7 @@ cp .env.example .env        # Windows: copy .env.example .env
 ## Before you push
 
 ```bash
-python -m py_compile rag_backend.py gradio_app.py persistent_memory.py ollama_utils.py llamacpp_utils.py prompt_engineering.py eval/evaluate.py
+python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py eval/evaluate.py
 python -m unittest discover -s tests -p 'test_*.py'   # must be 9/9 OK
 ```
 
@@ -26,7 +26,7 @@ python -m unittest discover -s tests -p 'test_*.py'   # must be 9/9 OK
 
 1. **Never commit secrets.** `.env`, `*.sqlite3`, `data/uploads/`, `chroma_langchain_db/` are git-ignored. If a key leaks, revoke it where it was created and tell the maintainer.
 2. **One concern per PR.** Don't mix a bug fix with a refactor.
-3. **`rag_backend.py` is the single source of truth.** Don't reintroduce a parallel CLI/agent flow — extend the backend and wire it through `gradio_app.py`.
+3. **`agentic_docuchat/rag_backend.py` is the single source of truth.** Don't reintroduce a parallel CLI/agent flow — extend the backend and wire it through `agentic_docuchat/app.py` (launched via `gradio_app.py`).
 4. **Keep it local-first.** New features must work with no API keys (offline fallback) unless they are explicitly cloud features.
 5. **Tests for behavior changes.** Bug fix? Add or update a test in `tests/` that fails before and passes after.
 6. **Human tone.** User-facing strings (errors, status, README) should read like a helpful friend, not a stack trace.

@@ -1,6 +1,6 @@
 import unittest
 
-from ollama_utils import detect_gpu
+from agentic_docuchat.ollama_utils import detect_gpu
 
 
 class OllamaUtilityTests(unittest.TestCase):

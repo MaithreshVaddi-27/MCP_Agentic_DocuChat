@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-docuchat"
+version = "2.0.0"
+description = "Chat with your PDFs, privately and with receipts"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Maithresh Vaddi" }]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentic_docuchat*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

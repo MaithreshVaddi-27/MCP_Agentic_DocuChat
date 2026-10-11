@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from persistent_memory import PersistentMemory, ResponseCache
+from agentic_docuchat.persistent_memory import PersistentMemory, ResponseCache
 
 
 def _temp_db():

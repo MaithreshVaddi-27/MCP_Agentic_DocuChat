@@ -101,7 +101,7 @@ async def main() -> None:
     parser.add_argument("--provider", default="llamacpp", choices=["gemini", "ollama", "llamacpp"])
     args = parser.parse_args()
 
-    from rag_backend import RagBackend
+    from agentic_docuchat.rag_backend import RagBackend
 
     try:
         backend = RagBackend(document_path=args.document)
