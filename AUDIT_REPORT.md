@@ -1,9 +1,16 @@
-# Deep Audit — MCP_Agentic_DocuChat
+# Deep Audit — Agentic_DocuChat
 
-Date: 2026-10-11 · Round 2 (professional re-audit) · Skills: code-review, code-reviewer, dependency-auditor
-Repo: `MaithreshVaddi-27/MCP_Agentic_DocuChat`, branch `main`
+Date: 2026-10-11 · Round 3 (safe-minor upgrades, rename, single-maintainer) · Skills: code-review, dependency-audit, security-review
+Repo: `MaithreshVaddi-27/MCP_Agentic_DocuChat` (URL unchanged), branch `main`
 
-## Round-2 verdict: 8.4/10 — lean, tested, documented
+## Round-3 verdict: 8.7/10 — current, renamed, single-maintainer
+
+Round 2 scored 8.4/10. Since then: 16 pins bumped within safe series
+(verified each on PyPI), display name → `Agentic_DocuChat`, Gradio
+inline-`State` fix, CI Python matrix 3.10–3.12, history reattributed to
+sole maintainer + `.mailmap` (local only, not pushed).
+
+## What changed in round 3
 
 Round 1 scored 7.2/10. Since then: Windows SQLite crash fixed (9/9 tests),
 deps pinned, PDF validation added, `main.py`/`legacy_cli.py` duplication

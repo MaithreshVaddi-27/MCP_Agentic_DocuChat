@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Project display name → `Agentic_DocuChat` (UI title/header, prompts, docstrings, README, CONTRIBUTING; repo URL and folder unchanged)
+- Safe-minor dependency bumps (all verified on PyPI, same-major/minor series): `gradio 5.34.0→5.50.0`, `langchain 1.3.14→1.3.18`, `langgraph 1.2.10→1.2.14`, `langchain-google-genai 4.3.2→4.3.7`, `langchain-huggingface 1.2.2→1.2.3`, `langchain-text-splitters 1.1.2→1.1.3`, `sentence-transformers 5.1.0→5.1.2`, `transformers 4.48.0→4.48.3`, `pypdf 6.14.2→6.20.0`, `python-dotenv 1.2.2→1.2.4`, `composio(-langchain) 0.18.1→0.18.2`, `langchain-ollama 0.3.4→0.3.10`, `langchain-openai 0.3.27→0.3.35`, `deepeval 2.7.0→2.7.9`, `pytest 8.3.4→8.3.5`
+- CI now tests Python 3.10–3.12 matrix (matches README's 3.10+ claim)
+- Sole maintainer: git history reattributed to `Maithresh Vaddi <maithreshvaddi16@gmail.com>`; `.mailmap` added; Cline checkpoint refs removed (local rewrite — needs `push --force-with-lease` to publish)
 - Default Gemini model → `gemini-3.5-flash-lite` (latest fastest/cost-efficient 3.5, per Google July 2026 release) in `.env.example`, backend default, README, and DeepEval judge
 
 ### Added
