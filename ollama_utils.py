@@ -1,7 +1,13 @@
-"""Small, non-invasive Ollama and GPU health checks."""
+"""Small, friendly health checks: is Ollama awake, and is there a GPU?
+
+Never installs or starts anything — just peeks (a quick HTTP ping, and
+`nvidia-smi` / macOS system info if present) so the status panel can show
+an honest green or red dot.
+"""
 
 from __future__ import annotations
 
+import json
 import platform
 import shutil
 import subprocess
@@ -55,8 +61,6 @@ def ollama_status(base_url: str = "http://localhost:11434") -> dict[str, Any]:
     try:
         request = Request(f"{base_url.rstrip('/')}/api/tags", method="GET")
         with urlopen(request, timeout=2) as response:
-            import json
-
             payload = json.loads(response.read().decode("utf-8"))
         status["running"] = True
         status["models"] = [item.get("name", "") for item in payload.get("models", [])]

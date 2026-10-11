@@ -1,17 +1,20 @@
-"""Reusable agentic RAG backend for the CLI and Gradio interface.
+"""Agentic RAG backend — the part that reads your PDF and answers questions.
 
-Performance notes (see README "Engineering guardrails" for the full picture):
-  - Retrieval runs at most once per question (context text and displayed
-    sources are derived from the same MMR search, not two).
-  - The embedding model and chat model/agent objects are built once per
-    config and reused, instead of being reconstructed on every call.
-  - Ollama's health/GPU probe is cached with a short TTL instead of running
-    on every single message.
-  - The response cache key is based on durable user memory, not the
-    constantly-changing recent-conversation text, so repeated questions in
-    an ongoing session can actually hit cache.
-  - Rebuilding the index for the same document+embedding-model combo is a
-    no-op (`_refresh_index` short-circuits on an unchanged document_version).
+Think of it like this: you hand DocuChat a paper, it files every paragraph
+in a searchable cabinet (Chroma), and when you ask something it pulls the
+best pages, shows them to the model, and hands you an answer with page
+numbers attached.
+
+Performance notes (how we keep it snappy):
+  - Retrieval runs at most once per question — the answer and the "Sources"
+    box come from the same search, not two.
+  - The embedding model and chat model are loaded once and reused, instead
+    of being rebuilt on every question.
+  - Health checks for Ollama/llama.cpp are cached for a few seconds rather
+    than re-run on every message.
+  - Repeat questions hit a local answer cache (keyed on your saved memories,
+    not the ever-changing chat history, so repeats actually match).
+  - Reopening the app with the same PDF skips re-embedding entirely.
 """
 
 from __future__ import annotations
@@ -91,7 +94,7 @@ class RagBackend:
         self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5").strip()
         self.embedding_model_online = os.getenv("EMBEDDING_MODEL_ONLINE", "models/text-embedding-004").strip()
 
-        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
         self.ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:4b").strip()
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()
         self.ollama_keep_alive = os.getenv("OLLAMA_KEEP_ALIVE", "10m").strip()
@@ -211,8 +214,28 @@ class RagBackend:
         self.documents, self.vector_store = self._build_index()
 
     def _load_documents(self):
+        path = Path(self.document_path)
+        # Human guardrail: friendly errors, plus a cheap magic-bytes check
+        # so a renamed .txt/.html doesn't explode deep inside pypdf.
+        if not path.exists():
+            raise RuntimeError(f"I couldn't find that file: {self.document_path}")
+        if path.suffix.lower() != ".pdf":
+            raise RuntimeError("Please upload a .pdf file — that's all I can read right now.")
+        max_mb = float(os.getenv("MAX_PDF_MB", "50"))
+        size_mb = path.stat().st_size / (1024 * 1024)
+        if size_mb > max_mb:
+            raise RuntimeError(
+                f"That PDF is {size_mb:.1f} MB — the limit is {max_mb:.0f} MB. "
+                "Try a smaller file or a single chapter."
+            )
         try:
-            documents = PyPDFLoader(self.document_path).load()
+            with open(path, "rb") as handle:
+                header = handle.read(5)
+            if header != b"%PDF-":
+                raise RuntimeError("That file doesn't look like a real PDF (missing %PDF header).")
+            documents = PyPDFLoader(str(path)).load()
+        except RuntimeError:
+            raise
         except FileNotFoundError as error:
             raise RuntimeError(f"DOCUMENT_PATH not found: {self.document_path}") from error
         except requests.exceptions.RequestException as error:

@@ -1,7 +1,8 @@
-"""Simple Gradio workspace for the agentic RAG backend.
+"""The chat window you see in the browser.
 
-Kept intentionally plain: one column, a status line, and a chat box.
-No custom CSS beyond Gradio's built-in dark theme.
+Deliberately plain: a setup column on the left, your conversation on the
+right. No custom CSS beyond Gradio's built-in theme — it just works,
+light or dark.
 """
 
 from __future__ import annotations
@@ -30,12 +31,24 @@ STATUS_DOT = {True: "\U0001F7E2", False: "\U0001F534"}
 COPY_JS = """
 () => {
   const box = document.querySelector('#last_answer_box textarea');
-  if (box && box.value) { navigator.clipboard.writeText(box.value); }
+  const text = box ? box.value : '';
+  if (!text) { return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+  } else {
+    box.select();
+    try { document.execCommand('copy'); } catch (e) {}
+  }
 }
 """
 
 THEME_TOGGLE_JS = """
-() => { document.body.classList.toggle('dark'); }
+() => {
+  const root = document.documentElement;
+  const isDark = root.classList.toggle('dark');
+  try { localStorage.setItem('docuchat-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+  return isDark;
+}
 """
 
 

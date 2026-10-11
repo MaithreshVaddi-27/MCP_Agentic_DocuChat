@@ -1,11 +1,11 @@
-"""Small, non-invasive health check for a local llama.cpp server.
+"""Small, friendly health check: is your local llama.cpp server awake?
 
-Expects `llama-server` (the OpenAI-compatible server that ships with
-llama.cpp) running locally, e.g.:
+Just pings `llama-server`'s `/v1/models` endpoint (the OpenAI-compatible
+server that ships with llama.cpp), e.g. started with:
 
     llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080
 
-which exposes an OpenAI-compatible API at http://localhost:8080/v1.
+which serves at http://localhost:8080/v1.
 """
 
 from __future__ import annotations

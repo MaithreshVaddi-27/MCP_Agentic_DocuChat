@@ -1,0 +1,1 @@
+"""DocuChat evaluation suite (DeepEval golden set)."""

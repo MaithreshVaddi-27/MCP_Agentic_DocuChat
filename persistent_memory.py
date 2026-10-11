@@ -1,4 +1,9 @@
-"""Small SQLite-backed stores for conversation memory and response caching."""
+"""DocuChat's notebook — remembers your chats and preferences on this machine.
+
+Nothing leaves your computer: recent questions, facts like "I prefer short
+answers", and answers we've already computed (so repeats are instant) all
+live in one small SQLite file next to the app.
+"""
 
 from __future__ import annotations
 
@@ -16,17 +21,50 @@ def _utc_now() -> str:
 
 
 class PersistentMemory:
-    """Keep recent conversation turns and short, user-approved facts locally."""
+    """Remember recent chats and short personal facts, locally.
+
+    Two drawers in the notebook: conversation_turns (what you asked, what
+    we said, when) and user_memories (facts you stated, like "I prefer
+    short answers"). A third drawer, response_feedback, keeps your
+    thumbs-up / thumbs-down clicks.
+    """
 
     def __init__(self, database_path: str = "./agentic_rag_memory.sqlite3") -> None:
         self.database_path = Path(database_path)
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        # When tests pass "some_dir/memory.sqlite3" where some_dir does not
+        # exist yet, the parent is the temp dir (exists); when they pass a
+        # bare filename, parent is "." (exists). Only create real parents.
+        if str(self.database_path.parent) not in ("", "."):
+            self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._create_tables()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
+        # A generous timeout means two quick questions in a row don't trip
+        # over each other ("database is locked"). Each call gets its own
+        # connection, so async handlers stay out of each other's way.
+        connection = sqlite3.connect(
+            self.database_path, timeout=30.0, check_same_thread=False
+        )
         connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("PRAGMA busy_timeout = 30000")
+            connection.execute("PRAGMA journal_mode = WAL")
+            connection.execute("PRAGMA synchronous = NORMAL")
+        except sqlite3.Error:
+            pass  # pragmas are best-effort; core reads/writes still work
         return connection
+
+    def close(self) -> None:
+        """Tidy up so temp folders can be deleted (matters on Windows).
+
+        SQLite's WAL mode keeps sidecar files open; checkpointing them
+        back into the main file lets the OS release the folder.
+        """
+        try:
+            with self._connect() as connection:
+                connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.Error:
+            pass
 
     def _create_tables(self) -> None:
         with self._connect() as connection:

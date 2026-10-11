@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 
@@ -5,21 +6,36 @@ from persistent_memory import PersistentMemory
 from prompt_engineering import needs_grounding_repair
 
 
+def _temp_db():
+    handle = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
+    handle.close()
+    return handle.name
+
+
+def _cleanup(db):
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        try:
+            os.unlink(db + suffix)
+        except OSError:
+            pass
+
+
 class CacheKeyStabilityTests(unittest.TestCase):
-    """Regression test: the cache key must be based on durable memory, not
-    the constantly-changing recent conversation — otherwise a verbatim
-    repeated question never hits cache once any turn has happened."""
+    """The cache key must use durable memory, not the ever-changing
+    recent conversation — otherwise a repeated question never hits
+    cache once any chat turn has happened."""
 
     def test_cache_key_is_stable_across_conversation_turns(self):
-        with tempfile.TemporaryDirectory() as directory:
-            memory = PersistentMemory(f"{directory}/memory.sqlite3")
+        db = _temp_db()
+        try:
+            memory = PersistentMemory(db)
             user_id = "user-1"
 
             key_before = memory.cache_key(
                 user_id, "What is RAG?", "doc-v1", "gemini:model", memory.memories_text(user_id)
             )
 
-            # An intervening conversation turn changes recent_turns_text...
+            # An intervening chat turn changes recent_turns_text...
             memory.add_turn(user_id, "Tell me about transformers.", "They use self-attention.")
 
             key_after = memory.cache_key(
@@ -27,10 +43,14 @@ class CacheKeyStabilityTests(unittest.TestCase):
             )
 
             self.assertEqual(key_before, key_after)
+            memory.close()
+        finally:
+            _cleanup(db)
 
     def test_cache_key_changes_when_durable_memory_changes(self):
-        with tempfile.TemporaryDirectory() as directory:
-            memory = PersistentMemory(f"{directory}/memory.sqlite3")
+        db = _temp_db()
+        try:
+            memory = PersistentMemory(db)
             user_id = "user-1"
 
             key_before = memory.cache_key(
@@ -42,6 +62,9 @@ class CacheKeyStabilityTests(unittest.TestCase):
             )
 
             self.assertNotEqual(key_before, key_after)
+            memory.close()
+        finally:
+            _cleanup(db)
 
 
 class GroundingRepairTests(unittest.TestCase):
