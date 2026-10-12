@@ -87,10 +87,6 @@ Draft:
 """.strip()
 
 
-def memory_capture_instruction() -> str:
-    return "Capture only explicit, durable user preferences or facts; do not save document facts or secrets."
-
-
 def needs_grounding_repair(answer: str, retrieved_context: str) -> bool:
     """
     Shared loop-engineering check, used by every provider: does this answer

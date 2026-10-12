@@ -142,6 +142,12 @@ The full commented list lives in [`.env.example`](.env.example) — every `os.ge
 
 Green dot = ready. Red dot = the exact command to run is in [Troubleshooting](#troubleshooting).
 
+Not sure what's installed? This prints your live Ollama/llama.cpp models plus the `.env` lines to select them:
+
+```bash
+python -m agentic_docuchat.local_models
+```
+
 > Compatibility note: this release pins **Gradio 5.x**. Gradio 6 removed the `Chatbot(type=…)` API this UI uses — don't bump Gradio past 5 until the UI is migrated.
 
 ## Usage
@@ -177,6 +183,7 @@ MCP_Agentic_DocuChat/
 │   ├── rag_backend.py         # Indexing, providers, memory, cache (single source of truth)
 │   ├── persistent_memory.py   # Local SQLite (chats, facts, cache)
 │   ├── prompt_engineering.py  # Evidence packs + repair loop
+│   ├── local_models.py        # `python -m agentic_docuchat.local_models` — lists installed local models
 │   └── ollama_utils.py / llamacpp_utils.py   # Local-server health checks
 ├── eval/evaluate.py           # DeepEval quality suite
 ├── tests/                     # 12 unit tests, all passing
@@ -190,7 +197,7 @@ Ignored at runtime: `.env`, `data/uploads/`, `chroma_langchain_db/`, `*.sqlite3`
 
 ```bash
 python -m unittest discover -s tests -p 'test_*.py'   # Windows: "test_*.py"
-python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py eval/evaluate.py
+python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py agentic_docuchat/local_models.py eval/evaluate.py
 ```
 
 End-to-end needs a PDF + one working provider (Gemini key or local server).

@@ -15,11 +15,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Default Gemini model → `gemini-3.5-flash-lite` (latest fastest/cost-efficient 3.5, per Google July 2026 release) in `.env.example`, backend default, README, and DeepEval judge
 
 ### Added
+- `agentic_docuchat/local_models.py` — `python -m agentic_docuchat.local_models` lists installed Ollama/llama.cpp models and prints matching `.env` lines (verified live against Ollama)
 - `eval/evaluate.py` — DeepEval quality suite (faithfulness, relevancy, context precision) with offline fallback
 - `AUDIT_REPORT.md` — rounds 1–2 deep-audit log
 - `CONTRIBUTING.md`, `SECURITY.md`, CI workflow, PR template
 
 ### Fixed
+- Removed dead `memory_capture_instruction()` (defined, never called anywhere); ruff F-check clean, per-function usage trace confirms no other orphans
 - Ollama model check is exact-match: a same-family tag (e.g. `gemma3:1b` for a `gemma3:4b` config) now yields a friendly error suggesting either `ollama pull` or the installed tag, instead of a raw server 404 (found by live manual testing)
 - Eval suite gave each case its own user id — back-to-back questions tripped the per-user rate limit and scored 0s out of the box; now 4/4 with default config
 - `MAX_PDF_MB` was read by the code but missing from `.env.example` — added with docs
