@@ -1,14 +1,14 @@
-# Deep Audit — Agentic_DocuChat
+# Deep Audit — MCP_Agentic_DocuChat
 
 Date: 2026-10-11 · Round 3 (safe-minor upgrades, rename, single-maintainer) · Skills: code-review, dependency-audit, security-review
 Repo: `MaithreshVaddi-27/MCP_Agentic_DocuChat` (URL unchanged), branch `main`
 
-## Round-3 verdict: 8.7/10 — current, renamed, single-maintainer
+## Round-3 verdict: 8.7/10 — current, single-maintainer
 
 Round 2 scored 8.4/10. Since then: 17 pins bumped within safe series
 (verified each on PyPI, full `pip install` proven in a clean venv —
 `langchain-openai` had to go to 1.7.0 since 0.3.x conflicts with
-LangChain 1.x), display name → `Agentic_DocuChat`, Gradio
+LangChain 1.x), Gradio
 inline-`State` fix, CI Python matrix 3.10–3.12, history reattributed to
 sole maintainer + `.mailmap` (local only, not pushed).
 

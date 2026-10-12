@@ -1,4 +1,4 @@
-"""Agentic_DocuChat's notebook — remembers your chats and preferences on this machine.
+"""MCP_Agentic_DocuChat's notebook — remembers your chats and preferences on this machine.
 
 Nothing leaves your computer: recent questions, facts like "I prefer short
 answers", and answers we've already computed (so repeats are instant) all

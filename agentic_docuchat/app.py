@@ -27,6 +27,7 @@ startup_error = ""
 PROVIDERS = ["Llama.cpp", "Gemini", "Ollama"]
 EMBEDDING_CHOICES = ["Local", "Online"]
 STATUS_DOT = {True: "\U0001F7E2", False: "\U0001F534"}
+THEME = gr.themes.Base(primary_hue="blue", neutral_hue="slate")
 
 COPY_JS = """
 () => {
@@ -96,7 +97,7 @@ def refresh_models(provider: str):
     key = _provider_key(provider)
     choices = _discovered_models(key)
     current = _current_model(key)
-    return gr.update(
+    return gr.Dropdown(
         choices=choices,
         value=current if current in choices else None,
         interactive=key in {"ollama", "llamacpp"},
@@ -215,7 +216,7 @@ def export_chat(history: list[dict] | None) -> str | None:
         return None
     lines = []
     for turn in history:
-        role = "You" if turn.get("role") == "user" else "Agentic_DocuChat"
+        role = "You" if turn.get("role") == "user" else "MCP_Agentic_DocuChat"
         lines.append(f"{role}: {turn.get('content', '')}")
     text = "\n\n".join(lines)
     path = Path(tempfile.gettempdir()) / "agentic-docuchat-transcript.txt"
@@ -313,11 +314,13 @@ def save_feedback(user_id: str, rating: str):
 
 # --------------------------------------------------------------- launch ---
 
-def _launch():
-    parser = argparse.ArgumentParser(description="Agentic_DocuChat Gradio app")
-    parser.add_argument("--share", action="store_true", help="Create a temporary public Gradio URL")
-    parser.add_argument("--no-share", action="store_true", help="Disable public sharing")
-    args = parser.parse_args()
+def _resolve_share_auth(args) -> tuple[bool, tuple[str, str] | None]:
+    """Decide public sharing and login from flags + env (pure, testable).
+
+    Sharing and login are independent knobs: real credentials in `.env`
+    protect the UI wherever it runs, while `--share` additionally refuses
+    to start without them.
+    """
     env_share = os.getenv("GRADIO_SHARE", "false").lower() in {"1", "true", "yes", "on"}
     share = False if args.no_share else (True if args.share else env_share)
     username = os.getenv("GRADIO_USERNAME", "").strip()
@@ -327,7 +330,16 @@ def _launch():
     auth = (username, password) if username and password else None
     if share and auth is None:
         raise RuntimeError("Public sharing requires GRADIO_USERNAME and GRADIO_PASSWORD in .env.")
-    demo.launch(share=share, auth=auth)
+    return share, auth
+
+
+def _launch():
+    parser = argparse.ArgumentParser(description="MCP_Agentic_DocuChat Gradio app")
+    parser.add_argument("--share", action="store_true", help="Create a temporary public Gradio URL (needs login in .env)")
+    parser.add_argument("--no-share", action="store_true", help="Disable public sharing")
+    args = parser.parse_args()
+    share, auth = _resolve_share_auth(args)
+    demo.launch(share=share, auth=auth, theme=THEME)
 
 
 def main() -> None:
@@ -338,9 +350,9 @@ def main() -> None:
 
 # ------------------------------------------------------------------- UI ---
 
-with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue", neutral_hue="slate")) as demo:
+with gr.Blocks(title="MCP_Agentic_DocuChat") as demo:
     with gr.Row():
-        gr.Markdown("## Agentic_DocuChat\nAsk questions about a PDF using a local llama.cpp model, Gemini, or Ollama.")
+        gr.Markdown("## MCP_Agentic_DocuChat\nAsk questions about a PDF using a local llama.cpp model, Gemini, or Ollama.")
         theme_toggle = gr.Button("\U0001F319 / \u2600\ufe0f", size="sm", scale=0)
         theme_toggle.click(None, None, None, js=THEME_TOGGLE_JS)
 
@@ -386,7 +398,7 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
                 not_helpful = gr.Button("\U0001F44E", size="sm")
 
         with gr.Column(scale=2, min_width=560):
-            chatbot = gr.Chatbot(type="messages", height=460, show_label=False, placeholder="Ask a question about your document.")
+            chatbot = gr.Chatbot(height=460, show_label=False, placeholder="Ask a question about your document.")
             question = gr.Textbox(label="Your question", placeholder="What are the main findings?", lines=2)
             with gr.Row():
                 ask = gr.Button("Ask", variant="primary", scale=3)

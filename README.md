@@ -1,13 +1,13 @@
-# Agentic_DocuChat — Chat With Your PDFs, Privately and With Receipts
+# MCP_Agentic_DocuChat — Chat With Your PDFs, Privately and With Receipts
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
-![Gradio 5](https://img.shields.io/badge/gradio-5-orange)
+![Gradio 6](https://img.shields.io/badge/gradio-6-orange)
 ![LangChain](https://img.shields.io/badge/langchain-1.3-green)
 ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **Upload a research paper. Ask anything. Get answers that point to the exact page they came from.**
 
-Agentic_DocuChat is a friendly, local-first reading companion. It reads your PDF,
+MCP_Agentic_DocuChat is a friendly, local-first reading companion. It reads your PDF,
 remembers what matters to you, and answers using *your document first* — with web
 search only when the paper itself doesn't have the answer. Run it fully offline with
 llama.cpp or Ollama, or plug in Gemini when you want extra brainpower.
@@ -16,7 +16,7 @@ llama.cpp or Ollama, or plug in Gemini when you want extra brainpower.
 > About 10 minutes total, most of it downloads.
 
 ```
-You + PDF  ──▶  Agentic_DocuChat reads & indexes  ──▶  you ask  ──▶  grounded answer + page numbers
+You + PDF  ──▶  MCP_Agentic_DocuChat reads & indexes  ──▶  you ask  ──▶  grounded answer + page numbers
                         │                                                  │
                Chroma (local vectors)                           memory + cache (local SQLite)
 ```
@@ -131,7 +131,8 @@ cp .env.example .env   # Windows: copy .env.example .env
 | `MAX_PDF_MB` | `50` | Uploads larger than this are refused politely |
 | `RETRIEVAL_K` / `RETRIEVAL_FETCH_K` | `4` / `12` | MMR search depth (answer chunks / candidate pool) |
 | `RATE_LIMIT_SECONDS` | `1.5` | Per-user cooldown against double-clicks |
-| `GRADIO_SHARE` | `false` | Keep `false` for private docs |
+| `GRADIO_SHARE` | `false` | `true` = temporary public URL (refuses to start without login below) |
+| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (login off) | Set both to require login — locally and when sharing |
 
 <details>
 <summary>Advanced tuning (click to expand — defaults are fine to start)</summary>
@@ -169,8 +170,6 @@ Not sure what's installed? This prints your live Ollama/llama.cpp models plus th
 ```bash
 python -m agentic_docuchat.local_models
 ```
-
-> Compatibility note: this release pins **Gradio 5.x**. Gradio 6 removed the `Chatbot(type=…)` API this UI uses — don't bump Gradio past 5 until the UI is migrated.
 
 ## Usage
 
@@ -229,8 +228,9 @@ End-to-end needs a PDF + one working provider (Gemini key or local server).
 
 Running this beyond your own laptop? The checklist is short:
 
-- **Lock sharing down.** `GRADIO_SHARE=false` (default) plus `GRADIO_USERNAME`/`GRADIO_PASSWORD`
-  set — public sharing without credentials is refused at startup. Never expose the UI to
+- **Lock sharing down.** `GRADIO_SHARE=false` (default). Set `GRADIO_USERNAME`/`GRADIO_PASSWORD`
+  and the login gate applies everywhere, local or shared; public sharing without
+  credentials is refused at startup. Never expose the UI to
   an untrusted network without login; the rate limit stops double-clicks, not attackers.
   Prefer an SSH tunnel or an authenticated reverse proxy over a public port.
 - **Know what's yours to back up.** `agentic_rag_memory.sqlite3` (chats, facts, cache),
@@ -259,7 +259,7 @@ Running this beyond your own laptop? The checklist is short:
 
 ## Security & contributing
 
-- **Security:** never commit `.env`; keep `GRADIO_SHARE=false` for private docs; PDFs, chats, and memories stay on your disk (online embeddings/Gemini send text to Google). Full policy: [`SECURITY.md`](SECURITY.md). The rate limit stops double-clicks, not attackers — don't expose the UI unauthenticated.
+- **Security:** never commit `.env`; keep `GRADIO_SHARE=false` for private docs and set a login via `GRADIO_USERNAME`/`GRADIO_PASSWORD` whenever the UI leaves your machine; PDFs, chats, and memories stay on your disk (online embeddings/Gemini send text to Google). Full policy: [`SECURITY.md`](SECURITY.md). The rate limit stops double-clicks, not attackers — don't expose the UI unauthenticated.
 - **Contributing:** small, focused PRs; `agentic_docuchat/rag_backend.py` is the single source of truth; behavior changes need tests. Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License

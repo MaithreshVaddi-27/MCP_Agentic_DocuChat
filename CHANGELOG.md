@@ -6,11 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Gradio 5.50 → **6.30** (migrated `Blocks(theme=…)` → `launch(theme=…)`, dropped removed `Chatbot(type=…)`), which forced the embedding stack forward: `transformers` 4.48.3 → **5.19.0**, `sentence-transformers` 5.1.2 → **6.1.0** (gradio 6 needs `huggingface-hub>=1.16`, transformers 4 caps `<1.0` — full clean-venv install proven)
+- Login decoupled from sharing: real `GRADIO_USERNAME`/`GRADIO_PASSWORD` now protect the UI everywhere, and `--share`/public URLs still refuse to start without them (`_resolve_share_auth`, unit-tested)
 - `.env.example`: fixed stale header comment, moved misplaced `ANSWER_LOOP_MAX_ATTEMPTS` next to `RATE_LIMIT_SECONDS`, noted the UI dropdown overrides `OLLAMA_MODEL` (all 37 vars verified read by code — none unwanted)
 - `.gitignore`: covers Gradio runtime dirs (`flagged/`, `.gradio/`) and `.python-version`
 - README production pass: resource requirements, full advanced-tuning table, and a Production-use checklist (auth, backups, pin-and-verify upgrades)
 - Professional layout (v2.0.0): app code now lives in the `agentic_docuchat/` package (`app.py`, `rag_backend.py`, `persistent_memory.py`, `prompt_engineering.py`, `ollama_utils.py`, `llamacpp_utils.py`); `gradio_app.py` stays as a tiny launcher so `python gradio_app.py` keeps working; new `pyproject.toml` (metadata, pytest/ruff config) and `tests/__init__.py`. README, CONTRIBUTING, CI, and PR template updated for the new paths
 - Project display name → `Agentic_DocuChat` (UI title/header, prompts, docstrings, README, CONTRIBUTING; repo URL and folder unchanged)
+- Project name kept as `MCP_Agentic_DocuChat` — display branding reverted accordingly (package stays `agentic_docuchat`)
 - Safe-minor dependency bumps (all verified on PyPI, `pip install -r requirements.txt` proven in a clean venv): `gradio 5.34.0→5.50.0`, `langchain 1.3.14→1.3.18`, `langgraph 1.2.10→1.2.14`, `langchain-google-genai 4.3.2→4.3.7`, `langchain-huggingface 1.2.2→1.2.3`, `langchain-text-splitters 1.1.2→1.1.3`, `sentence-transformers 5.1.0→5.1.2`, `transformers 4.48.0→4.48.3`, `pypdf 6.14.2→6.20.0`, `python-dotenv 1.2.2→1.2.4`, `composio(-langchain) 0.18.1→0.18.2`, `langchain-ollama 0.3.4→0.3.10`, `langchain-openai 0.3.27→1.7.0` (0.3.x caps `langchain-core<1.0` and conflicts with LangChain 1.x — must stay on 1.x), `deepeval 2.7.0→2.7.9`, `pytest 8.3.4→8.3.5`. Gradio stays on 5.x (v6 removed the `Chatbot(type=…)` API)
 - README rewritten: features, quickstart with OS details, config table, structure, troubleshooting (incl. the `langchain-openai` conflict row)
 - CI now tests Python 3.10–3.12 matrix (matches README's 3.10+ claim)

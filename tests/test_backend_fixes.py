@@ -259,6 +259,46 @@ class UploadUiTests(unittest.TestCase):
         self.assertEqual(app_mod._provider_key("Ollama"), "ollama")
         self.assertEqual(app_mod._provider_key("Gemini"), "gemini")
 
+    def _ns(self, share=False, no_share=False):
+        import types
+
+        return types.SimpleNamespace(share=share, no_share=no_share)
+
+    def _resolve(self, env, **flags):
+        from unittest import mock
+
+        with mock.patch.dict(os.environ, env, clear=False):
+            return app_mod._resolve_share_auth(self._ns(**flags))
+
+    def test_share_off_no_creds_is_open_local(self):
+        env = {"GRADIO_SHARE": "false", "GRADIO_USERNAME": "", "GRADIO_PASSWORD": ""}
+        self.assertEqual(self._resolve(env), (False, None))
+
+    def test_credentials_protect_even_without_share(self):
+        env = {"GRADIO_SHARE": "false", "GRADIO_USERNAME": "me", "GRADIO_PASSWORD": "s3cret"}
+        self.assertEqual(self._resolve(env), (False, ("me", "s3cret")))
+
+    def test_share_without_credentials_refuses(self):
+        env = {"GRADIO_SHARE": "true", "GRADIO_USERNAME": "", "GRADIO_PASSWORD": ""}
+        with self.assertRaises(RuntimeError):
+            self._resolve(env)
+
+    def test_share_with_credentials_allowed(self):
+        env = {"GRADIO_SHARE": "true", "GRADIO_USERNAME": "me", "GRADIO_PASSWORD": "s3cret"}
+        self.assertEqual(self._resolve(env), (True, ("me", "s3cret")))
+
+    def test_placeholder_credentials_mean_no_auth(self):
+        env = {
+            "GRADIO_SHARE": "false",
+            "GRADIO_USERNAME": "choose_a_username",
+            "GRADIO_PASSWORD": "choose_a_strong_password",
+        }
+        self.assertEqual(self._resolve(env), (False, None))
+
+    def test_cli_flags_override_env(self):
+        env = {"GRADIO_SHARE": "true", "GRADIO_USERNAME": "me", "GRADIO_PASSWORD": "s3cret"}
+        self.assertEqual(self._resolve(env, no_share=True), (False, ("me", "s3cret")))
+
 
 async def _collect(gen):
     return [item async for item in gen]

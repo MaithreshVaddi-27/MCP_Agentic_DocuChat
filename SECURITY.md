@@ -18,7 +18,10 @@ Expect an acknowledgement within 72 hours and a fix or mitigation plan within 14
 
 ## Scope notes (known limitations, not bugs)
 
-- The Gradio UI has **no login by default** (`auth=None` unless `GRADIO_SHARE=true`). Don't expose it to a network you don't trust without adding auth or binding `127.0.0.1`.
+- The Gradio UI has **no login by default**. Set `GRADIO_USERNAME` + `GRADIO_PASSWORD`
+  to require login everywhere (local or shared); `GRADIO_SHARE=true` additionally
+  refuses to start without them. Don't expose the UI to a network you don't trust
+  without login.
 - The per-user **rate limit is in-memory** (anti-double-click, not anti-abuse).
 - Uploaded PDFs are validated by extension + `%PDF-` header + size cap, not by a full malware scan. Don't process untrusted PDFs on sensitive machines.
 - Never commit `.env` or API keys. Rotate any exposed credential immediately at its provider (AI Studio / HuggingFace / Composio).

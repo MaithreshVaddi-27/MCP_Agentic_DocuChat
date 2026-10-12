@@ -1,7 +1,7 @@
 python-dotenv==1.2.4
 pypdf==6.20.0
-sentence-transformers==5.1.2
-transformers==4.48.3
+sentence-transformers==6.1.0
+transformers==5.19.0
 langchain-community==0.4.2
 langchain==1.3.18
 langgraph==1.2.14
@@ -12,7 +12,7 @@ langchain-text-splitters==1.1.3
 requests==2.34.2
 composio==0.18.2
 composio-langchain==0.18.2
-gradio==5.50.0
+gradio==6.30.0
 langchain-ollama==0.3.10
 # NOTE: langchain-openai must stay on 1.x — the 0.3.x series caps
 # langchain-core<1.0 and conflicts with the langchain 1.x family above.

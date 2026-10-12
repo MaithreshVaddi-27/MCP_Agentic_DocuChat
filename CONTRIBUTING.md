@@ -1,4 +1,4 @@
-# Contributing to Agentic_DocuChat
+# Contributing to MCP_Agentic_DocuChat
 
 Thanks for stopping by — small, focused pull requests beat big ones, and
 there's no such thing as a silly question in a review.

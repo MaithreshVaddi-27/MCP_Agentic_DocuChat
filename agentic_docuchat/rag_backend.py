@@ -1,6 +1,6 @@
 """Agentic RAG backend — the part that reads your PDF and answers questions.
 
-Think of it like this: you hand Agentic_DocuChat a paper, it files every paragraph
+Think of it like this: you hand MCP_Agentic_DocuChat a paper, it files every paragraph
 in a searchable cabinet (Chroma), and when you ask something it pulls the
 best pages, shows them to the model, and hands you an answer with page
 numbers attached.

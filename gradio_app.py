@@ -1,4 +1,4 @@
-"""Run Agentic_DocuChat.
+"""Run MCP_Agentic_DocuChat.
 
 Kept as a tiny launcher so the familiar command keeps working:
 
