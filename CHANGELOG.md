@@ -20,6 +20,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CONTRIBUTING.md`, `SECURITY.md`, CI workflow, PR template
 
 ### Fixed
+- Ollama model check is exact-match: a same-family tag (e.g. `gemma3:1b` for a `gemma3:4b` config) now yields a friendly error suggesting either `ollama pull` or the installed tag, instead of a raw server 404 (found by live manual testing)
+- Eval suite gave each case its own user id — back-to-back questions tripped the per-user rate limit and scored 0s out of the box; now 4/4 with default config
 - `MAX_PDF_MB` was read by the code but missing from `.env.example` — added with docs
 - Singular page count ("Loaded x (1 page)"); `data/uploads/.gitkeep` is now tracked so fresh clones keep the folder
 - Windows SQLite teardown crash — WAL + `busy_timeout=30s`, `NamedTemporaryFile` tests (9/9 pass)

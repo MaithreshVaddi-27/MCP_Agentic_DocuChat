@@ -422,6 +422,27 @@ class RagBackend:
             max_tokens=self.llamacpp_num_ctx,
         )
 
+    @staticmethod
+    def _ollama_model_error(configured: str, installed: list[str]) -> str | None:
+        """Friendly error when the configured model isn't installed, else None.
+
+        Exact match only: a same-family tag (e.g. gemma3:1b for a gemma3:4b
+        config) is a different model, and sending the configured name anyway
+        ends in a raw server 404 — so suggest the near-miss instead.
+        """
+        if configured in installed:
+            return None
+        model_base = configured.split(":", 1)[0]
+        same_family = [name for name in installed if name.split(":", 1)[0] == model_base]
+        available = ", ".join(installed[:6]) or "none"
+        hint = (
+            f" You have {', '.join(same_family)} — either run "
+            f"`ollama pull {configured}` or set `OLLAMA_MODEL` to one of those."
+            if same_family
+            else f" Run `ollama pull {configured}`."
+        )
+        return f"Ollama model `{configured}` is not installed.{hint} Available: {available}."
+
     def _build_ollama_client(self):
         try:
             from langchain_ollama import ChatOllama
@@ -433,16 +454,10 @@ class RagBackend:
                 f"Ollama is not reachable at {self.ollama_base_url}. Start it with `ollama serve`."
             )
         installed_models = health.get("models", [])
-        model_base = self.ollama_model.split(":", 1)[0]
-        if installed_models and not any(
-            name == self.ollama_model or name.split(":", 1)[0] == model_base
-            for name in installed_models
-        ):
-            available = ", ".join(installed_models[:6]) or "none"
-            raise RuntimeError(
-                f"Ollama model `{self.ollama_model}` is not installed. "
-                f"Run `ollama pull {self.ollama_model}`. Available: {available}."
-            )
+        if installed_models:
+            error = self._ollama_model_error(self.ollama_model, installed_models)
+            if error is not None:
+                raise RuntimeError(error)
         return ChatOllama(
             model=self.ollama_model,
             base_url=self.ollama_base_url,

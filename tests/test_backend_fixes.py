@@ -5,6 +5,11 @@ import unittest
 from agentic_docuchat.persistent_memory import PersistentMemory
 from agentic_docuchat.prompt_engineering import needs_grounding_repair
 
+try:
+    from agentic_docuchat.rag_backend import RagBackend
+except ImportError:  # light envs without the langchain stack skip these
+    RagBackend = None
+
 
 def _temp_db():
     handle = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
@@ -89,6 +94,26 @@ class GroundingRepairTests(unittest.TestCase):
 
     def test_no_retrieved_context_never_needs_repair(self):
         self.assertFalse(needs_grounding_repair("Short.", "No relevant passages were found in the PDF."))
+
+
+@unittest.skipIf(RagBackend is None, "needs full backend deps (langchain stack)")
+class OllamaModelErrorTests(unittest.TestCase):
+    """The configured model must match an installed tag exactly — a
+    same-family tag (gemma3:1b vs gemma3:4b) is a different model and
+    would end in a raw server 404 instead of a helpful message."""
+
+    def test_exact_match_is_fine(self):
+        self.assertIsNone(RagBackend._ollama_model_error("gemma3:4b", ["gemma3:4b", "qwen3:1.7b"]))
+
+    def test_same_family_suggests_installed_tag(self):
+        error = RagBackend._ollama_model_error("gemma3:4b", ["gemma3:1b", "qwen3:1.7b"])
+        self.assertIn("gemma3:1b", error)
+        self.assertIn("ollama pull gemma3:4b", error)
+
+    def test_no_family_suggests_pull(self):
+        error = RagBackend._ollama_model_error("gemma3:4b", ["qwen3:1.7b"])
+        self.assertIn("ollama pull gemma3:4b", error)
+        self.assertNotIn("You have", error)
 
 
 if __name__ == "__main__":

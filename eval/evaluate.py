@@ -55,8 +55,8 @@ def _local_scores(answer: str, sources: list) -> dict:
     }
 
 
-async def _run_case(backend, case: dict, provider: str) -> dict:
-    result = await backend.ask(case["question"], user_id="eval", provider=provider)
+async def _run_case(backend, case: dict, provider: str, user_id: str = "eval") -> dict:
+    result = await backend.ask(case["question"], user_id=user_id, provider=provider)
     answer = result.get("answer", "")
     sources = result.get("sources", [])
 
@@ -115,9 +115,11 @@ async def main() -> None:
             rows.append({"question": case["question"], "answer": "", "judge": "skipped",
                          "faithfulness": 0.0, "answer_relevancy": 0.0, "context_precision": 0.0})
     else:
-        for case in GOLDEN_SET:
+        # A distinct user per case: the backend's per-user rate limit would
+        # otherwise fail every question after the first with a cooldown error.
+        for index, case in enumerate(GOLDEN_SET):
             try:
-                rows.append(await _run_case(backend, case, args.provider))
+                rows.append(await _run_case(backend, case, args.provider, user_id=f"eval-{index}"))
             except Exception as error:
                 rows.append({"question": case["question"], "answer": f"ERROR: {error}",
                              "judge": "error", "faithfulness": 0.0,
