@@ -10,6 +10,11 @@ try:
 except ImportError:  # light envs without the langchain stack skip these
     RagBackend = None
 
+try:
+    import agentic_docuchat.app as app_mod
+except ImportError:  # light envs without gradio/full stack skip these
+    app_mod = None
+
 
 def _temp_db():
     handle = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
@@ -114,6 +119,62 @@ class OllamaModelErrorTests(unittest.TestCase):
         error = RagBackend._ollama_model_error("gemma3:4b", ["qwen3:1.7b"])
         self.assertIn("ollama pull gemma3:4b", error)
         self.assertNotIn("You have", error)
+
+
+@unittest.skipIf(app_mod is None, "needs gradio + full backend deps")
+class UploadUiTests(unittest.TestCase):
+    def test_quick_check_rejects_wrong_extension(self):
+        handle = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+        handle.write(b"hello")
+        handle.close()
+        try:
+            self.assertIn(".pdf", app_mod._quick_pdf_check(handle.name))
+        finally:
+            os.unlink(handle.name)
+
+    def test_quick_check_rejects_fake_pdf_instantly(self):
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.write(b"plain text, not a pdf")
+        handle.close()
+        try:
+            self.assertIn("%PDF", app_mod._quick_pdf_check(handle.name))
+        finally:
+            os.unlink(handle.name)
+
+    def test_quick_check_accepts_real_header(self):
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.write(b"%PDF-1.4 fake but headered")
+        handle.close()
+        try:
+            self.assertIsNone(app_mod._quick_pdf_check(handle.name))
+        finally:
+            os.unlink(handle.name)
+
+    def test_banner_shows_setup_error_and_clears(self):
+        app_mod.startup_error = "boom"
+        try:
+            self.assertIn("boom", app_mod._banner_text())
+        finally:
+            app_mod.startup_error = ""
+        self.assertEqual(app_mod._banner_text(), "")
+
+    def test_fake_upload_fails_fast_without_backend(self):
+        app_mod.backend = None
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.write(b"plain text, not a pdf")
+        handle.close()
+        try:
+            import asyncio
+
+            yields = list(asyncio.run(_collect(app_mod.upload_document(handle.name))))
+            self.assertEqual(len(yields), 1)  # single instant failure, no backend init
+            self.assertIn("%PDF", yields[0][0])
+        finally:
+            os.unlink(handle.name)
+
+
+async def _collect(gen):
+    return [item async for item in gen]
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ def _try_start(path: str | None = None) -> str:
     try:
         backend = RagBackend(document_path=path)
         startup_error = ""
-        return "Backend is ready."
+        return f"Backend is ready — {Path(backend.document_path).name} loaded."
     except Exception as error:
         backend = None
         startup_error = str(error)
@@ -174,36 +174,69 @@ def export_chat(history: list[dict] | None) -> str | None:
 
 # ------------------------------------------------------------- document ---
 
+def _banner_text() -> str:
+    """Top-of-page warning, refreshed after every document action so a
+    fixed setup stops shouting at you."""
+    return f"\u26a0\ufe0f **Setup needed:** {startup_error}" if startup_error else ""
+
+
+def _quick_pdf_check(file_path: str) -> str | None:
+    """Instant PDF sanity check on the uploaded temp file, before the slow
+    backend init — suffix + magic bytes, so a wrong file fails in a blink
+    instead of after a minutes-long model download."""
+    if Path(file_path).suffix.lower() != ".pdf":
+        return "Please upload a .pdf file — that's all I can read right now."
+    try:
+        with open(file_path, "rb") as handle:
+            header = handle.read(5)
+    except OSError:
+        return "I couldn't read that file. Try uploading it again."
+    if header != b"%PDF-":
+        return "That file doesn't look like a real PDF (missing %PDF header)."
+    return None
+
+
 async def upload_document(file_path: str | None):
     if not file_path:
-        yield "Choose a PDF first.", _status_text()
+        yield "Choose a PDF first.", _status_text(), _banner_text()
         return
-    yield "Processing document\u2026", _status_text()
+    problem = _quick_pdf_check(file_path)
+    if problem is not None:
+        yield problem, _status_text(), _banner_text()
+        return
+    name = Path(file_path).name
+    yield f"Reading {name}\u2026", _status_text(), _banner_text()
     try:
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
         destination = upload_dir / Path(file_path).name
         shutil.copy2(file_path, destination)
+        yield (
+            f"Building the search index for {name}\u2026 "
+            "(first run downloads the embedding model once, ~500 MB — takes a few minutes)",
+            _status_text(),
+            _banner_text(),
+        )
         # load_document/_try_start rebuild the index (PDF parse + embed),
         # which blocks — run it off the event loop so the UI doesn't freeze.
         if backend is None:
             message = await asyncio.to_thread(_try_start, str(destination))
         else:
             message = await asyncio.to_thread(backend.load_document, str(destination))
-        yield message, _status_text(refresh=True)
+        yield message, _status_text(refresh=True), _banner_text()
     except Exception as error:
-        yield f"Upload failed: {error}", _status_text()
+        yield f"Upload failed: {error}", _status_text(), _banner_text()
 
 
 async def rebuild_index():
     if backend is None:
-        yield startup_error
+        yield startup_error, _banner_text()
         return
-    yield "Rebuilding index\u2026"
+    yield "Rebuilding index\u2026", _banner_text()
     try:
-        yield await asyncio.to_thread(backend.rebuild_index)
+        yield await asyncio.to_thread(backend.rebuild_index), _banner_text()
     except Exception as error:
-        yield f"Rebuild failed: {error}"
+        yield f"Rebuild failed: {error}", _banner_text()
 
 
 async def switch_embeddings(choice: str):
@@ -259,8 +292,7 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
         theme_toggle = gr.Button("\U0001F319 / \u2600\ufe0f", size="sm", scale=0)
         theme_toggle.click(None, None, None, js=THEME_TOGGLE_JS)
 
-    if startup_error:
-        gr.Markdown(f"\u26a0\ufe0f **Setup needed:** {startup_error}")
+    setup_banner = gr.Markdown(_banner_text())
 
     with gr.Row():
         with gr.Column(scale=1, min_width=280):
@@ -283,8 +315,8 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
             process = gr.Button("Process document", variant="primary")
             rebuild = gr.Button("Rebuild index", size="sm")
             document_message = gr.Markdown()
-            process.click(upload_document, inputs=pdf_upload, outputs=[document_message, system_status])
-            rebuild.click(rebuild_index, outputs=document_message)
+            process.click(upload_document, inputs=pdf_upload, outputs=[document_message, system_status, setup_banner])
+            rebuild.click(rebuild_index, outputs=[document_message, setup_banner])
 
             gr.Markdown("---")
             clear_memory = gr.Button("Clear my chat & memory", size="sm")

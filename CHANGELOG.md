@@ -21,6 +21,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CONTRIBUTING.md`, `SECURITY.md`, CI workflow, PR template
 
 ### Fixed
+- Upload feedback: staged progress messages ("Reading…" → "Building the search index…"), instant rejection of non-PDFs before the slow backend init, and the top "Setup needed" banner now clears on success instead of lingering (it used to render once at page load and never update)
+- First-upload confirmation names the file ("Backend is ready — paper.pdf loaded.")
 - Removed dead `memory_capture_instruction()` (defined, never called anywhere); ruff F-check clean, per-function usage trace confirms no other orphans
 - Ollama model check is exact-match: a same-family tag (e.g. `gemma3:1b` for a `gemma3:4b` config) now yields a friendly error suggesting either `ollama pull` or the installed tag, instead of a raw server 404 (found by live manual testing)
 - Eval suite gave each case its own user id — back-to-back questions tripped the per-user rate limit and scored 0s out of the box; now 4/4 with default config

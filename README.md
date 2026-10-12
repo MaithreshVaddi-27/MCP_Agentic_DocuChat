@@ -214,6 +214,8 @@ End-to-end needs a PDF + one working provider (Gemini key or local server).
 | `PDF is 80 MB — limit is 50` | Split the PDF or raise `MAX_PDF_MB` in `.env` |
 | `database is locked` | Rare now (WAL enabled). Stop other app instances, restart |
 | Slow first answer | Normal — embedding model downloads once (~500 MB), then cached |
+| Stuck on "Processing document…" | Almost always the first-run model download above — the status lines now narrate each stage, so give it a few minutes and watch the terminal |
+| Setup warning won't go away | It clears itself once a document loads — if it stays, the upload actually failed; read the message under "Process document" |
 | `ModuleNotFoundError` | You forgot activation or the install failed: activate (`.\avenv\Scripts\Activate.ps1` / `source avenv/bin/activate`), reinstall requirements |
 
 ## Security & contributing
