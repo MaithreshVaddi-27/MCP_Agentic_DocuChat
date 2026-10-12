@@ -85,7 +85,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt   # first embedding download ~500 MB
 cp .env.example .env        # Windows: copy .env.example .env
 # paste your GEMINI_API_KEY into .env, then:
-python -m unittest discover -s tests -p 'test_*.py'   # expect OK, 12 tests
+python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 25 tests (16 skip gracefully without the full stack)
 python gradio_app.py
 ```
 
@@ -187,7 +187,7 @@ MCP_Agentic_DocuChat/
 │   ├── local_models.py        # `python -m agentic_docuchat.local_models` — lists installed local models
 │   └── ollama_utils.py / llamacpp_utils.py   # Local-server health checks
 ├── eval/evaluate.py           # DeepEval quality suite
-├── tests/                     # 12 unit tests, all passing
+├── tests/                     # 25 unit tests, all passing
 ├── pyproject.toml / requirements.txt / .env.example
 └── data/  (PDFs go in data/uploads/)
 ```

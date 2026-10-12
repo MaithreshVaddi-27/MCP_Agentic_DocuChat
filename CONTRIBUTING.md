@@ -19,7 +19,7 @@ cp .env.example .env        # Windows: copy .env.example .env
 
 ```bash
 python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py agentic_docuchat/local_models.py eval/evaluate.py
-python -m unittest discover -s tests -p 'test_*.py'   # must be 12/12 OK
+python -m unittest discover -s tests -p 'test_*.py'   # must be OK — 25 tests (16 skip without the full stack)
 ```
 
 ## Rules
