@@ -39,6 +39,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import InMemorySaver
 
 from ..llm.llamacpp import llamacpp_status
+from ..llm.mlx import mlx_status
 from ..llm.ollama import ollama_status
 from ..mcp.tools import load_mcp_tools
 from .memory import PersistentMemory, ResponseCache
@@ -50,7 +51,7 @@ from .prompts import (
     repair_prompt,
 )
 
-LOCAL_PROVIDERS = {"ollama", "llamacpp"}
+LOCAL_PROVIDERS = {"ollama", "llamacpp", "mlx"}
 EMBEDDING_PROVIDERS = {"local", "online"}
 
 load_dotenv()
@@ -92,7 +93,7 @@ class RagBackend:
         # this machine (private, no API calls); "online" calls Google's
         # embedding API (needs GEMINI_API_KEY, no local model download).
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", "local").strip().lower()
-        self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5").strip()
+        self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5").strip()
         self.embedding_model_online = os.getenv("EMBEDDING_MODEL_ONLINE", "models/text-embedding-004").strip()
 
         self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
@@ -103,7 +104,7 @@ class RagBackend:
         self.ollama_status_ttl = float(os.getenv("OLLAMA_STATUS_CACHE_SECONDS", "15"))
 
         # llama.cpp: a local `llama-server` process exposing an OpenAI-
-        # compatible API (see llamacpp_utils.py). The model is loaded by
+        # compatible API (see llm/llamacpp.py). The model is loaded by
         # llama-server itself, so LLAMACPP_MODEL only needs to match what
         # the server reports (or can be left as a display label).
         self.llamacpp_model = os.getenv("LLAMACPP_MODEL", "Qwen3-4B-GGUF:Q4_0").strip()
@@ -111,6 +112,15 @@ class RagBackend:
         self.llamacpp_api_key = os.getenv("LLAMACPP_API_KEY", "not-needed").strip() or "not-needed"
         self.llamacpp_num_ctx = int(os.getenv("LLAMACPP_NUM_CTX", "4096"))
         self.llamacpp_status_ttl = float(os.getenv("LLAMACPP_STATUS_CACHE_SECONDS", "15"))
+
+        # MLX: a local `mlx_lm.server` process (Apple Silicon) exposing the
+        # same OpenAI-compatible API shape (see llm/mlx.py). Like llama.cpp,
+        # the model lives server-side; MLX_MODEL must match what it reports.
+        self.mlx_model = os.getenv("MLX_MODEL", "mlx-community/gemma-3-4b-it-4bit").strip()
+        self.mlx_base_url = os.getenv("MLX_BASE_URL", "http://localhost:8081/v1").strip()
+        self.mlx_api_key = os.getenv("MLX_API_KEY", "not-needed").strip() or "not-needed"
+        self.mlx_num_ctx = int(os.getenv("MLX_NUM_CTX", "4096"))
+        self.mlx_status_ttl = float(os.getenv("MLX_STATUS_CACHE_SECONDS", "15"))
 
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         self.hf_token = os.getenv("HF_TOKEN", "").strip() or None
@@ -150,6 +160,8 @@ class RagBackend:
         self._ollama_status_time: float = 0.0
         self._llamacpp_status_cache: dict[str, Any] | None = None
         self._llamacpp_status_time: float = 0.0
+        self._mlx_status_cache: dict[str, Any] | None = None
+        self._mlx_status_time: float = 0.0
         self._last_request_time: dict[str, float] = {}
         self.document_version = ""
 
@@ -305,7 +317,10 @@ class RagBackend:
                 new_chunks.append(chunk)
                 new_ids.append(stable_id)
         if new_chunks:
-            store.add_documents(new_chunks, ids=new_ids)
+            # Batched so a very large PDF can't spike memory with one giant
+            # embedding + insert call.
+            for start in range(0, len(new_chunks), 100):
+                store.add_documents(new_chunks[start : start + 100], ids=new_ids[start : start + 100])
         return documents, store
 
     # ----------------------------------------------------------- retrieval
@@ -357,7 +372,7 @@ class RagBackend:
     def _use_agent(self, provider: str) -> bool:
         """Gemini always gets the tool-calling agent (retrieval tool for
         adaptive re-querying, plus MCP tools if configured). Local
-        providers (llama.cpp, Ollama) only go through the agent when MCP
+        providers (llama.cpp, Ollama, MLX) only go through the agent when MCP
         tools are actually configured — otherwise the faster, streaming,
         direct-grounded path is used, since small local models don't need
         agent overhead just to answer from pre-fetched context."""
@@ -409,6 +424,42 @@ class RagBackend:
             api_key=self.llamacpp_api_key,
             temperature=0.2,
             max_tokens=self.llamacpp_num_ctx,
+        )
+
+    def _cached_mlx_status(self, force: bool = False) -> dict[str, Any]:
+        now = time.time()
+        stale = (now - self._mlx_status_time) > self.mlx_status_ttl
+        if force or self._mlx_status_cache is None or stale:
+            self._mlx_status_cache = mlx_status(self.mlx_base_url)
+            self._mlx_status_time = now
+        return self._mlx_status_cache
+
+    def _resolve_mlx_model(self) -> str:
+        """Auto-adopt whatever model `mlx_lm.server` reports, if it differs
+        from MLX_MODEL."""
+        health = self._cached_mlx_status()
+        reported_models = health.get("models", [])
+        if health["running"] and reported_models and self.mlx_model not in reported_models:
+            self.mlx_model = reported_models[0]
+        return self.mlx_model
+
+    def _build_mlx_client(self):
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError as error:
+            raise RuntimeError("Install langchain-openai to use MLX.") from error
+        health = self._cached_mlx_status()
+        if not health["running"]:
+            raise RuntimeError(
+                f"MLX server is not reachable at {self.mlx_base_url}. "
+                f"Start it with `mlx_lm.server --model {self.mlx_model} --port 8081`."
+            )
+        return ChatOpenAI(
+            model=self.mlx_model,
+            base_url=self.mlx_base_url,
+            api_key=self.mlx_api_key,
+            temperature=0.2,
+            max_tokens=self.mlx_num_ctx,
         )
 
     @staticmethod
@@ -481,7 +532,13 @@ class RagBackend:
             if key not in self._models:
                 self._models[key] = self._build_llamacpp_client()
             return self._models[key], self.llamacpp_model
-        raise RuntimeError("Provider must be Gemini, Ollama, or llama.cpp.")
+        elif provider == "mlx":
+            resolved_model = self._resolve_mlx_model()
+            key = f"mlx:{resolved_model}"
+            if key not in self._models:
+                self._models[key] = self._build_mlx_client()
+            return self._models[key], self.mlx_model
+        raise RuntimeError("Provider must be Gemini, Ollama, llama.cpp, or MLX.")
 
     def _get_agent(self, provider: str = "gemini"):
         """Tool-calling agent (retrieval + MCP tools) for any provider.
@@ -528,8 +585,8 @@ class RagBackend:
         already checked it too, so this avoids double-charging one request
         against the per-user cooldown."""
         provider = provider.lower()
-        if provider not in {"gemini", "ollama", "llamacpp"}:
-            raise RuntimeError("Choose Gemini, Ollama, or llama.cpp.")
+        if provider not in {"gemini", "ollama", "llamacpp", "mlx"}:
+            raise RuntimeError("Choose Gemini, Ollama, llama.cpp, or MLX.")
 
         # For local providers, resolve the model early (this is where
         # llama.cpp auto-detects the server's actual loaded model) so the
@@ -619,8 +676,8 @@ class RagBackend:
             yield "Please enter a question.", []
             return
         self._check_rate_limit(user_id)
-        if provider not in {"gemini", "ollama", "llamacpp"}:
-            raise RuntimeError("Choose Gemini, Ollama, or llama.cpp.")
+        if provider not in {"gemini", "ollama", "llamacpp", "mlx"}:
+            raise RuntimeError("Choose Gemini, Ollama, llama.cpp, or MLX.")
 
         if self._use_agent(provider):
             # Non-streaming fallback — reuse the normal ask() path. Checked
@@ -762,6 +819,27 @@ class RagBackend:
         self._drop_provider_caches("llamacpp")
         return f"Switched llama.cpp to {model}."
 
+    def set_mlx_model(self, model: str) -> str:
+        """Point MLX at the model its server reports, validated live."""
+        model = model.strip()
+        if not model:
+            raise RuntimeError("Pick a reported MLX model first.")
+        health = self._cached_mlx_status(force=True)
+        if not health["running"]:
+            raise RuntimeError(
+                f"MLX server is not reachable at {self.mlx_base_url}. "
+                f"Start it with `mlx_lm.server --model {self.mlx_model} --port 8081`."
+            )
+        reported = health.get("models", [])
+        if reported and model not in reported:
+            available = ", ".join(reported[:6])
+            raise RuntimeError(f"MLX isn't serving `{model}`. Available: {available}.")
+        if model == self.mlx_model:
+            return f"Already using MLX model {model}."
+        self.mlx_model = model
+        self._drop_provider_caches("mlx")
+        return f"Switched MLX to {model}."
+
     def remember(self, memory: str, user_id: str = "default") -> str:
         memory = memory.strip()
         if not memory:
@@ -797,6 +875,8 @@ class RagBackend:
             "gemini_model": self.gemini_model,
             "ollama_model": self.ollama_model,
             "llamacpp_model": self.llamacpp_model,
+            "mlx_model": self.mlx_model,
             "ollama": self._cached_ollama_status(force=refresh),
             "llamacpp": self._cached_llamacpp_status(force=refresh),
+            "mlx": self._cached_mlx_status(force=refresh),
         }

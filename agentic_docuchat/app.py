@@ -24,7 +24,7 @@ load_dotenv()
 backend: RagBackend | None = None
 startup_error = ""
 
-PROVIDERS = ["Llama.cpp", "Gemini", "Ollama"]
+PROVIDERS = ["Llama.cpp", "Gemini", "Ollama", "MLX"]
 EMBEDDING_CHOICES = ["Local", "Online"]
 STATUS_DOT = {True: "\U0001F7E2", False: "\U0001F534"}
 THEME = gr.themes.Base(primary_hue="blue", neutral_hue="slate")
@@ -77,7 +77,7 @@ def _provider_key(provider: str) -> str:
 def _discovered_models(provider_key: str) -> list[str]:
     """Installed models on the live server, or [] — reads the backend's
     cached probes, so listing never adds new network waits."""
-    if backend is None or provider_key not in {"ollama", "llamacpp"}:
+    if backend is None or provider_key not in {"ollama", "llamacpp", "mlx"}:
         return []
     try:
         info = backend.status(refresh=False)[provider_key]
@@ -89,7 +89,11 @@ def _discovered_models(provider_key: str) -> list[str]:
 def _current_model(provider_key: str) -> str | None:
     if backend is None:
         return None
-    return {"ollama": backend.ollama_model, "llamacpp": backend.llamacpp_model}.get(provider_key)
+    return {
+        "ollama": backend.ollama_model,
+        "llamacpp": backend.llamacpp_model,
+        "mlx": backend.mlx_model,
+    }.get(provider_key)
 
 
 def refresh_models(provider: str):
@@ -100,7 +104,7 @@ def refresh_models(provider: str):
     return gr.Dropdown(
         choices=choices,
         value=current if current in choices else None,
-        interactive=key in {"ollama", "llamacpp"},
+        interactive=key in {"ollama", "llamacpp", "mlx"},
     )
 
 
@@ -109,14 +113,16 @@ def select_model(provider: str, model: str | None):
     if backend is None:
         return startup_error or "The backend is not ready yet."
     if not model:
-        return "No local model to select — start Ollama or llama.cpp first."
+        return "No local model to select — start Ollama, llama.cpp, or MLX first."
     key = _provider_key(provider)
     try:
         if key == "ollama":
             return backend.set_ollama_model(model)
         elif key == "llamacpp":
             return backend.set_llamacpp_model(model)
-        return "The model picker is for Ollama and llama.cpp — Gemini uses GEMINI_MODEL from .env."
+        elif key == "mlx":
+            return backend.set_mlx_model(model)
+        return "The model picker is for Ollama, llama.cpp, and MLX — Gemini uses GEMINI_MODEL from .env."
     except Exception as error:
         return f"Couldn't switch model: {error}"
 
@@ -128,12 +134,14 @@ def _status_text(refresh: bool = False) -> str:
         status = backend.status(refresh=refresh)
         ollama = status["ollama"]
         llamacpp = status["llamacpp"]
+        mlx = status["mlx"]
         mcp_running = status["mcp_tools"] != "off"
         lines = [
             f"Document: {status['document']} ({status['pages']} pages)",
             f"Embeddings: {status['embedding_model']}",
             f"{STATUS_DOT[llamacpp['running']]} llama.cpp \u2014 {'running' if llamacpp['running'] else 'offline'} \u00b7 {status['llamacpp_model']}",
             f"{STATUS_DOT[ollama['running']]} Ollama \u2014 {'running' if ollama['running'] else 'offline'} \u00b7 {status['ollama_model']}",
+            f"{STATUS_DOT[mlx['running']]} MLX \u2014 {'running' if mlx['running'] else 'offline'} \u00b7 {status['mlx_model']}",
             f"{STATUS_DOT[mcp_running]} MCP tools \u2014 {status['mcp_tools']}",
         ]
         return "\n".join(lines)
@@ -175,7 +183,7 @@ async def answer_question(question: str, user_id: str, provider: str, history: l
 
     provider_key = _provider_key(provider)
 
-    if provider_key in {"ollama", "llamacpp"} and backend is not None:
+    if provider_key in {"ollama", "llamacpp", "mlx"} and backend is not None:
         try:
             sources_text = ""
             updated = history
@@ -265,7 +273,7 @@ async def upload_document(file_path: str | None, provider: str = "Llama.cpp"):
         shutil.copy2(file_path, destination)
         yield (
             f"Building the search index for {name}\u2026 "
-            "(first run downloads the embedding model once, ~500 MB — takes a few minutes)",
+            "(first run downloads the embedding model once, ~1.3 GB — takes a few minutes)",
             _status_text(),
             _banner_text(),
             refresh_models(provider),
@@ -352,7 +360,7 @@ def main() -> None:
 
 with gr.Blocks(title="MCP_Agentic_DocuChat") as demo:
     with gr.Row():
-        gr.Markdown("## MCP_Agentic_DocuChat\nAsk questions about a PDF using a local llama.cpp model, Gemini, or Ollama.")
+        gr.Markdown("## MCP_Agentic_DocuChat\nAsk questions about a PDF using a local model (llama.cpp, Ollama, MLX) or Gemini.")
         theme_toggle = gr.Button("\U0001F319 / \u2600\ufe0f", size="sm", scale=0)
         theme_toggle.click(None, None, None, js=THEME_TOGGLE_JS)
 

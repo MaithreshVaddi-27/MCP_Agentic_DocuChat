@@ -10,7 +10,7 @@
 MCP_Agentic_DocuChat is a friendly, local-first reading companion. It reads your PDF,
 remembers what matters to you, and answers using *your document first* — with web
 search only when the paper itself doesn't have the answer. Run it fully offline with
-llama.cpp or Ollama, or plug in Gemini when you want extra brainpower.
+llama.cpp, Ollama, or MLX on Apple Silicon — or plug in Gemini when you want extra brainpower.
 
 > **New here?** Get a free Gemini key → run the commands below → open the app.
 > About 10 minutes total, most of it downloads.
@@ -41,8 +41,8 @@ You + PDF  ──▶  MCP_Agentic_DocuChat reads & indexes  ──▶  you ask  
 ## Features
 
 - **Grounded answers with receipts** — every claim cites `file — page N`; a repair pass retries once if the draft looks unsupported.
-- **Local-first** — PDFs, vectors, chats, and memories stay on your disk. Works fully offline with Ollama or llama.cpp.
-- **Three providers** — Gemini (tool-calling agent), Ollama, and llama.cpp (both stream token-by-token).
+- **Local-first** — PDFs, vectors, chats, and memories stay on your disk. Works fully offline with Ollama, llama.cpp, or MLX.
+- **Four providers** — Gemini (tool-calling agent), Ollama, llama.cpp, and MLX (locals stream token-by-token).
 - **Remembers you** — durable facts ("I prefer short answers") plus recent chat, stored in one local SQLite file.
 - **Fast repeats** — a bounded answer cache makes identical questions instant.
 - **Optional web tools** — Composio/Tavily search kicks in only when the PDF has no answer.
@@ -75,7 +75,7 @@ app with the same PDF skips re-embedding entirely.
 
 ## Quickstart
 
-**You need:** Python 3.10+, Git, ~2 GB free disk (dependencies + one-time ~500 MB embedding download),
+**You need:** Python 3.10+, Git, ~3 GB free disk (dependencies + one-time ~1.3 GB embedding download),
 enough RAM for your chosen model, and a Gemini API key ([get one free](https://aistudio.google.com/apikey)).
 
 ```bash
@@ -84,10 +84,10 @@ cd MCP_Agentic_DocuChat
 python3 -m venv avenv
 source avenv/bin/activate   # Windows: .\avenv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt   # first embedding download ~500 MB
+python -m pip install -r requirements.txt   # first embedding download ~1.3 GB
 cp .env.example .env        # Windows: copy .env.example .env
 # paste your GEMINI_API_KEY into .env, then:
-python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 33 tests (22 skip gracefully without the full stack)
+python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 35 tests (22 skip gracefully without the full stack)
 python gradio_app.py
 ```
 
@@ -139,7 +139,7 @@ cp .env.example .env   # Windows: copy .env.example .env
 
 | Variable | Default | What it does |
 |----------|---------|--------------|
-| `EMBEDDING_MODEL` / `EMBEDDING_MODEL_ONLINE` | `BAAI/bge-base-en-v1.5` / `models/text-embedding-004` | Local / Google embedding models |
+| `EMBEDDING_MODEL` / `EMBEDDING_MODEL_ONLINE` | `BAAI/bge-large-en-v1.5` / `models/text-embedding-004` | Local / Google embedding models |
 | `HF_TOKEN` | — | Only if HuggingFace rate-limits your embedding download |
 | `COMPOSIO_TOOLKITS` | `TAVILY` | Comma-separated toolkits for the Gemini agent |
 | `CHUNK_SIZE` / `CHUNK_OVERLAP` | `700` / `100` | Splitter settings (rebuild index after changing) |
@@ -147,10 +147,12 @@ cp .env.example .env   # Windows: copy .env.example .env
 | `ANSWER_LOOP_MAX_ATTEMPTS` | `2` | `1` = answer once, `2` = one grounding-repair retry |
 | `OLLAMA_KEEP_ALIVE` / `OLLAMA_NUM_CTX` | `10m` / `4096` | Ollama model keep-alive and context window |
 | `LLAMACPP_API_KEY` / `LLAMACPP_NUM_CTX` | `not-needed` / `4096` | llama-server credentials label and context window |
-| `OLLAMA_STATUS_CACHE_SECONDS` / `LLAMACPP_STATUS_CACHE_SECONDS` | `15` / `15` | How long health probes are trusted |
+| `MLX_MODEL` / `MLX_BASE_URL` | `mlx-community/gemma-3-4b-it-4bit` / `http://localhost:8081/v1` | MLX server model id and address |
+| `MLX_API_KEY` / `MLX_NUM_CTX` | `not-needed` / `4096` | MLX credentials label and context window |
+| `OLLAMA_STATUS_CACHE_SECONDS` / `LLAMACPP_STATUS_CACHE_SECONDS` / `MLX_STATUS_CACHE_SECONDS` | `15` / `15` / `15` | How long health probes are trusted |
 | `MEMORY_DATABASE` / `CHROMA_DIR` / `CHROMA_COLLECTION` | `./agentic_rag_memory.sqlite3` / `./chroma_langchain_db` / `agentic_rag_research_collection` | Where chats, vectors live (back these up) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for troubleshooting, `WARNING` for quiet |
-| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (auth off) | Required when `GRADIO_SHARE=true` — the app refuses to share without them |
+| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (login off) | Set both to require login everywhere; sharing refuses to start without them |
 
 </details>
 
@@ -162,10 +164,11 @@ The full commented list lives in [`.env.example`](.env.example) — every `os.ge
 |--------|---------|-------|--------------------|
 | Ollama (easiest) | [ollama.com/download](https://ollama.com/download) · Linux: `curl -fsSL https://ollama.com/install.sh \| sh` | `ollama pull gemma3:4b` + `ollama serve` | `OLLAMA_BASE_URL=http://localhost:11434` |
 | llama.cpp (fastest) | `llama-server` from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) | `llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080` (GPU: add `-ngl 99 -c 4096`) | `LLAMACPP_BASE_URL=http://localhost:8080/v1` · check `curl http://localhost:8080/v1/models` |
+| MLX (Apple Silicon) | `pipx install mlx-lm` | `mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081` | `MLX_BASE_URL=http://localhost:8081/v1` · check `curl http://localhost:8081/v1/models` |
 
 Green dot = ready. Red dot = the exact command to run is in [Troubleshooting](#troubleshooting).
 
-Not sure what's installed? This prints your live Ollama/llama.cpp models plus the `.env` lines to select them:
+Not sure what's installed? This prints your live Ollama/llama.cpp/MLX models plus the `.env` lines to select them:
 
 ```bash
 python -m agentic_docuchat.llm.models
@@ -174,7 +177,7 @@ python -m agentic_docuchat.llm.models
 ## Usage
 
 - **Ask** about the PDF; local-model answers stream token-by-token.
-- **Provider + Local model** — pick Ollama or llama.cpp, then choose any model actually installed on your machine (the list refreshes itself; `Refresh status` re-probes). Picks apply instantly and are validated — a typo gets a helpful error, not a server traceback.
+- **Provider + Local model** — pick Ollama, llama.cpp, or MLX, then choose any model actually installed on your machine (the list refreshes itself; `Refresh status` re-probes). Picks apply instantly and are validated — a typo gets a helpful error, not a server traceback.
 - **Sources** under each answer list the `file — page N` chunks used.
 - **Embeddings radio** switches local/online and rebuilds automatically.
 - **Rebuild index** forces re-embedding (e.g. after changing chunk settings).
@@ -207,12 +210,12 @@ MCP_Agentic_DocuChat/
 │   │   ├── memory.py          # Local SQLite (chats, facts, cache)
 │   │   └── prompts.py         # Evidence packs + repair loop
 │   ├── llm/                   # Chat-model providers
-│   │   ├── ollama.py / llamacpp.py   # Local-server health checks
+│   │   ├── ollama.py / llamacpp.py / mlx.py   # Local-server health checks
 │   │   └── models.py          # `python -m agentic_docuchat.llm.models` — lists installed local models
 │   └── mcp/                   # MCP tool integrations
 │       └── tools.py           # Composio loader (fail-closed, lazy)
 ├── eval/evaluate.py           # DeepEval quality suite
-├── tests/                     # 33 unit tests, all passing
+├── tests/                     # 35 unit tests, all passing
 ├── pyproject.toml / requirements.txt / .env.example
 └── data/  (PDFs go in data/uploads/)
 ```
@@ -242,7 +245,7 @@ Running this beyond your own laptop? The checklist is short:
 - **Pin and verify before upgrading.** Dependencies are pinned in `requirements.txt`
   (`langchain-openai` must stay on 1.x); after any bump run the [Testing](#testing)
   commands and one manual PDF question before deploying.
-- **Watch the first run.** The embedding model downloads once (~500 MB); after that,
+- **Watch the first run.** The embedding model downloads once (~1.3 GB); after that,
   restarts are fast and reopening the same PDF skips re-embedding entirely.
 
 ## Troubleshooting
@@ -252,11 +255,12 @@ Running this beyond your own laptop? The checklist is short:
 | `pip install` dependency conflict | Use the pinned `requirements.txt` as-is — `langchain-openai` must stay on 1.x (the 0.3.x series conflicts with LangChain 1.x). Don't mix in newer majors by hand. |
 | `GEMINI_API_KEY is missing` | Paste key from [AI Studio](https://aistudio.google.com/apikey) into `.env`, restart app |
 | llama.cpp 🔴 offline | `llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080` · verify `curl http://localhost:8080/v1/models` |
+| MLX 🔴 offline | `mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081` · verify `curl http://localhost:8081/v1/models` |
 | Ollama 🔴 offline | `ollama serve` · then `ollama pull gemma3:4b` · verify `ollama list` |
 | `That file doesn't look like a real PDF` | File isn't a PDF (renamed .txt/.html). Upload the original PDF |
 | `PDF is 80 MB — limit is 50` | Split the PDF or raise `MAX_PDF_MB` in `.env` |
 | `database is locked` | Rare now (WAL enabled). Stop other app instances, restart |
-| Slow first answer | Normal — embedding model downloads once (~500 MB), then cached |
+| Slow first answer | Normal — embedding model downloads once (~1.3 GB), then cached |
 | Stuck on "Processing document…" | Almost always the first-run model download above — the status lines now narrate each stage, so give it a few minutes and watch the terminal |
 | Setup warning won't go away | It clears itself once a document loads — if it stays, the upload actually failed; read the message under "Process document" |
 | `ModuleNotFoundError` | You forgot activation or the install failed: activate (`.\avenv\Scripts\Activate.ps1` / `source avenv/bin/activate`), reinstall requirements |

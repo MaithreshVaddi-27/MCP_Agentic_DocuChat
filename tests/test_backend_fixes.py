@@ -185,6 +185,31 @@ class OllamaModelErrorTests(unittest.TestCase):
             be.set_llamacpp_model("Other")
         self.assertIn("Qwen3", str(ctx.exception))
 
+    def test_set_mlx_model_offline_fails_friendly(self):
+        be = self._bare_backend(
+            mlx_model="mlx-community/gemma-3-4b-it-4bit",
+            mlx_base_url="http://localhost:8081/v1",
+        )
+        be._cached_mlx_status = lambda force=False: {"running": False, "models": []}
+        with self.assertRaises(RuntimeError) as ctx:
+            be.set_mlx_model("other")
+        self.assertIn("mlx_lm.server", str(ctx.exception))
+
+    def test_set_mlx_model_switches_and_drops_caches(self):
+        be = self._bare_backend(
+            mlx_model="old-model",
+            mlx_base_url="http://localhost:8081/v1",
+        )
+        be._cached_mlx_status = (
+            lambda force=False: {"running": True, "models": ["new-model"]}
+        )
+        be._models = {"mlx:old-model": object()}
+        be._agents = {"agent:mlx": object()}
+        self.assertIn("new-model", be.set_mlx_model("new-model"))
+        self.assertEqual(be.mlx_model, "new-model")
+        self.assertEqual(be._models, {})
+        self.assertEqual(be._agents, {})
+
 
 @unittest.skipIf(app_mod is None, "needs gradio + full backend deps")
 class UploadUiTests(unittest.TestCase):

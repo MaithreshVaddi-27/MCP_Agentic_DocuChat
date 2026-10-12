@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Default Gemini model → `gemini-3.5-flash-lite` (latest fastest/cost-efficient 3.5, per Google July 2026 release) in `.env.example`, backend default, README, and DeepEval judge
 
 ### Added
+- MLX provider (Apple Silicon): `llm/mlx.py` health probe, backend client with model auto-adopt, `MLX_*` env config, UI radio + model-picker support, status line, `local_models` discovery — verified live against `mlx_lm.server` (ask + streaming with page citations)
 - UI model picker: the **Local model** dropdown lists models installed on your Ollama/llama.cpp servers, refreshes with status, and applies instantly with validation (`set_ollama_model` / `set_llamacpp_model`); status panel now shows the active model per provider. Verified live by switching `gemma3:1b` → `qwen3:1.7b` mid-session
 - `agentic_docuchat/local_models.py` — `python -m agentic_docuchat.local_models` lists installed Ollama/llama.cpp models and prints matching `.env` lines (verified live against Ollama)
 - `eval/evaluate.py` — DeepEval quality suite (faithfulness, relevancy, context precision) with offline fallback
@@ -29,6 +30,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CONTRIBUTING.md`, `SECURITY.md`, CI workflow, PR template
 
 ### Fixed
+- Default embedding model `bge-base` → **`bge-large-en-v1.5`** (1024-dim, proven encode; one-time ~1.3 GB download)
+- Chroma inserts now batch in hundreds so huge PDFs can't spike memory
 - Upload feedback: staged progress messages ("Reading…" → "Building the search index…"), instant rejection of non-PDFs before the slow backend init, and the top "Setup needed" banner now clears on success instead of lingering (it used to render once at page load and never update)
 - First-upload confirmation names the file ("Backend is ready — paper.pdf loaded.")
 - Removed dead `memory_capture_instruction()` (defined, never called anywhere); ruff F-check clean, per-function usage trace confirms no other orphans

@@ -7,7 +7,7 @@
 ## How I verified
 
 - [ ] `python -m compileall -q gradio_app.py agentic_docuchat eval`
-- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (33 tests)
+- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (35 tests)
 - [ ] Manual run: `python gradio_app.py` + asked a PDF question
 
 ## Docs / config
