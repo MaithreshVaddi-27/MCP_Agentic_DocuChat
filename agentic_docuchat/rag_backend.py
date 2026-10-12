@@ -719,6 +719,60 @@ class RagBackend:
         label = self.embedding_model_online if provider == "online" else self.embedding_model_name
         return f"Switched to {provider} embeddings ({label}) and rebuilt the index."
 
+    def _drop_provider_caches(self, provider: str) -> None:
+        """Forget built clients/agents for one provider so the next question
+        rebuilds them against the current config (e.g. a new model name).
+        The answer cache needs no clearing — its key includes the model."""
+        prefix = f"{provider}:"
+        for key in [key for key in self._models if key.startswith(prefix)]:
+            del self._models[key]
+        self._agents.pop(f"agent:{provider}", None)
+
+    def set_ollama_model(self, model: str) -> str:
+        """Point Ollama at an installed model, validated live so a typo
+        fails here with a helpful message instead of mid-answer."""
+        model = model.strip()
+        if not model:
+            raise RuntimeError("Pick an installed Ollama model first.")
+        health = self._cached_ollama_status(force=True)
+        if not health["running"]:
+            raise RuntimeError(
+                f"Ollama is not reachable at {self.ollama_base_url}. Start it with `ollama serve`."
+            )
+        installed = health.get("models", [])
+        if installed:
+            error = self._ollama_model_error(model, installed)
+            if error is not None:
+                raise RuntimeError(error)
+        if model == self.ollama_model:
+            return f"Already using Ollama model {model}."
+        self.ollama_model = model
+        self._drop_provider_caches("ollama")
+        return f"Switched Ollama to {model}."
+
+    def set_llamacpp_model(self, model: str) -> str:
+        """Point llama.cpp at the model its server reports, validated live."""
+        model = model.strip()
+        if not model:
+            raise RuntimeError("Pick a reported llama.cpp model first.")
+        health = self._cached_llamacpp_status(force=True)
+        if not health["running"]:
+            raise RuntimeError(
+                f"llama.cpp server is not reachable at {self.llamacpp_base_url}. "
+                f"Start it with `llama-server -hf {self.llamacpp_model} --port 8080`."
+            )
+        reported = health.get("models", [])
+        if reported and model not in reported:
+            available = ", ".join(reported[:6])
+            raise RuntimeError(
+                f"llama.cpp isn't serving `{model}`. Available: {available}."
+            )
+        if model == self.llamacpp_model:
+            return f"Already using llama.cpp model {model}."
+        self.llamacpp_model = model
+        self._drop_provider_caches("llamacpp")
+        return f"Switched llama.cpp to {model}."
+
     def remember(self, memory: str, user_id: str = "default") -> str:
         memory = memory.strip()
         if not memory:
@@ -751,6 +805,9 @@ class RagBackend:
             "pages": len(self.documents),
             "embedding_model": embedding_label,
             "mcp_tools": mcp_label,
+            "gemini_model": self.gemini_model,
+            "ollama_model": self.ollama_model,
+            "llamacpp_model": self.llamacpp_model,
             "ollama": self._cached_ollama_status(force=refresh),
             "llamacpp": self._cached_llamacpp_status(force=refresh),
         }

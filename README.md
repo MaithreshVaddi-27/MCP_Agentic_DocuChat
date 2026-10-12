@@ -153,6 +153,7 @@ python -m agentic_docuchat.local_models
 ## Usage
 
 - **Ask** about the PDF; local-model answers stream token-by-token.
+- **Provider + Local model** — pick Ollama or llama.cpp, then choose any model actually installed on your machine (the list refreshes itself; `Refresh status` re-probes). Picks apply instantly and are validated — a typo gets a helpful error, not a server traceback.
 - **Sources** under each answer list the `file — page N` chunks used.
 - **Embeddings radio** switches local/online and rebuilds automatically.
 - **Rebuild index** forces re-embedding (e.g. after changing chunk settings).

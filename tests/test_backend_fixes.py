@@ -120,6 +120,71 @@ class OllamaModelErrorTests(unittest.TestCase):
         self.assertIn("ollama pull gemma3:4b", error)
         self.assertNotIn("You have", error)
 
+    def _bare_backend(self, **attrs):
+        be = RagBackend.__new__(RagBackend)
+        be._models = {}
+        be._agents = {}
+        for key, value in attrs.items():
+            setattr(be, key, value)
+        return be
+
+    def test_drop_provider_caches_only_touches_that_provider(self):
+        be = self._bare_backend()
+        be._models = {"ollama:a": 1, "gemini:x": 2, "llamacpp:z": 3}
+        be._agents = {"agent:ollama": 1, "agent:gemini": 2}
+        be._drop_provider_caches("ollama")
+        self.assertEqual(be._models, {"gemini:x": 2, "llamacpp:z": 3})
+        self.assertEqual(be._agents, {"agent:gemini": 2})
+
+    def test_set_ollama_model_offline_fails_friendly(self):
+        be = self._bare_backend(
+            ollama_model="gemma3:1b",
+            ollama_base_url="http://localhost:11434",
+        )
+        be._cached_ollama_status = lambda force=False: {"running": False, "models": []}
+        with self.assertRaises(RuntimeError) as ctx:
+            be.set_ollama_model("qwen3:1.7b")
+        self.assertIn("ollama serve", str(ctx.exception))
+
+    def test_set_ollama_model_switches_and_drops_caches(self):
+        be = self._bare_backend(
+            ollama_model="gemma3:1b",
+            ollama_base_url="http://localhost:11434",
+        )
+        be._cached_ollama_status = (
+            lambda force=False: {"running": True, "models": ["gemma3:1b", "qwen3:1.7b"]}
+        )
+        be._models = {"ollama:gemma3:1b": object()}
+        be._agents = {"agent:ollama": object()}
+        self.assertIn("qwen3:1.7b", be.set_ollama_model("qwen3:1.7b"))
+        self.assertEqual(be.ollama_model, "qwen3:1.7b")
+        self.assertEqual(be._models, {})
+        self.assertEqual(be._agents, {})
+
+    def test_set_ollama_model_rejects_unknown_tag(self):
+        be = self._bare_backend(
+            ollama_model="gemma3:1b",
+            ollama_base_url="http://localhost:11434",
+        )
+        be._cached_ollama_status = (
+            lambda force=False: {"running": True, "models": ["gemma3:1b"]}
+        )
+        with self.assertRaises(RuntimeError) as ctx:
+            be.set_ollama_model("gemma3:4b")
+        self.assertIn("gemma3:1b", str(ctx.exception))
+
+    def test_set_llamacpp_model_rejects_unreported_tag(self):
+        be = self._bare_backend(
+            llamacpp_model="old",
+            llamacpp_base_url="http://localhost:8080/v1",
+        )
+        be._cached_llamacpp_status = (
+            lambda force=False: {"running": True, "models": ["Qwen3"]}
+        )
+        with self.assertRaises(RuntimeError) as ctx:
+            be.set_llamacpp_model("Other")
+        self.assertIn("Qwen3", str(ctx.exception))
+
 
 @unittest.skipIf(app_mod is None, "needs gradio + full backend deps")
 class UploadUiTests(unittest.TestCase):
@@ -169,8 +234,30 @@ class UploadUiTests(unittest.TestCase):
             yields = list(asyncio.run(_collect(app_mod.upload_document(handle.name))))
             self.assertEqual(len(yields), 1)  # single instant failure, no backend init
             self.assertIn("%PDF", yields[0][0])
+            self.assertEqual(len(yields[0]), 4)  # message, status, banner, models
         finally:
             os.unlink(handle.name)
+
+    def test_select_model_without_backend_reports_setup(self):
+        app_mod.backend = None
+        app_mod.startup_error = "boom"
+        try:
+            self.assertIn("boom", app_mod.select_model("Ollama", "gemma3:1b"))
+        finally:
+            app_mod.startup_error = ""
+
+    def test_select_model_for_gemini_points_at_env(self):
+        old_backend = app_mod.backend
+        app_mod.backend = object()  # any non-None backend; Gemini path never touches it
+        try:
+            self.assertIn("GEMINI_MODEL", app_mod.select_model("Gemini", "gemini-3.5-flash-lite"))
+        finally:
+            app_mod.backend = old_backend
+
+    def test_provider_key_normalizes_labels(self):
+        self.assertEqual(app_mod._provider_key("Llama.cpp"), "llamacpp")
+        self.assertEqual(app_mod._provider_key("Ollama"), "ollama")
+        self.assertEqual(app_mod._provider_key("Gemini"), "gemini")
 
 
 async def _collect(gen):

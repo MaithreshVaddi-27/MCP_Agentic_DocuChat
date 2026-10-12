@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Default Gemini model → `gemini-3.5-flash-lite` (latest fastest/cost-efficient 3.5, per Google July 2026 release) in `.env.example`, backend default, README, and DeepEval judge
 
 ### Added
+- UI model picker: the **Local model** dropdown lists models installed on your Ollama/llama.cpp servers, refreshes with status, and applies instantly with validation (`set_ollama_model` / `set_llamacpp_model`); status panel now shows the active model per provider. Verified live by switching `gemma3:1b` → `qwen3:1.7b` mid-session
 - `agentic_docuchat/local_models.py` — `python -m agentic_docuchat.local_models` lists installed Ollama/llama.cpp models and prints matching `.env` lines (verified live against Ollama)
 - `eval/evaluate.py` — DeepEval quality suite (faithfulness, relevancy, context precision) with offline fallback
 - `AUDIT_REPORT.md` — rounds 1–2 deep-audit log

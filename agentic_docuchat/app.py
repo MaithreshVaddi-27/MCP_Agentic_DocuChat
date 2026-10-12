@@ -69,6 +69,57 @@ def _try_start(path: str | None = None) -> str:
 _try_start()
 
 
+def _provider_key(provider: str) -> str:
+    return provider.lower().replace(".", "").replace(" ", "")
+
+
+def _discovered_models(provider_key: str) -> list[str]:
+    """Installed models on the live server, or [] — reads the backend's
+    cached probes, so listing never adds new network waits."""
+    if backend is None or provider_key not in {"ollama", "llamacpp"}:
+        return []
+    try:
+        info = backend.status(refresh=False)[provider_key]
+    except Exception:
+        return []
+    return info.get("models", []) if info.get("running") else []
+
+
+def _current_model(provider_key: str) -> str | None:
+    if backend is None:
+        return None
+    return {"ollama": backend.ollama_model, "llamacpp": backend.llamacpp_model}.get(provider_key)
+
+
+def refresh_models(provider: str):
+    """Rebuild the local-model dropdown for the chosen provider."""
+    key = _provider_key(provider)
+    choices = _discovered_models(key)
+    current = _current_model(key)
+    return gr.update(
+        choices=choices,
+        value=current if current in choices else None,
+        interactive=key in {"ollama", "llamacpp"},
+    )
+
+
+def select_model(provider: str, model: str | None):
+    """Apply a picked local model instantly, validated against the server."""
+    if backend is None:
+        return startup_error or "The backend is not ready yet."
+    if not model:
+        return "No local model to select — start Ollama or llama.cpp first."
+    key = _provider_key(provider)
+    try:
+        if key == "ollama":
+            return backend.set_ollama_model(model)
+        elif key == "llamacpp":
+            return backend.set_llamacpp_model(model)
+        return "The model picker is for Ollama and llama.cpp — Gemini uses GEMINI_MODEL from .env."
+    except Exception as error:
+        return f"Couldn't switch model: {error}"
+
+
 def _status_text(refresh: bool = False) -> str:
     if backend is None:
         return f"{STATUS_DOT[False]} Backend not ready \u2014 {startup_error}"
@@ -80,8 +131,8 @@ def _status_text(refresh: bool = False) -> str:
         lines = [
             f"Document: {status['document']} ({status['pages']} pages)",
             f"Embeddings: {status['embedding_model']}",
-            f"{STATUS_DOT[llamacpp['running']]} llama.cpp \u2014 {'running' if llamacpp['running'] else 'offline'}",
-            f"{STATUS_DOT[ollama['running']]} Ollama \u2014 {'running' if ollama['running'] else 'offline'}",
+            f"{STATUS_DOT[llamacpp['running']]} llama.cpp \u2014 {'running' if llamacpp['running'] else 'offline'} \u00b7 {status['llamacpp_model']}",
+            f"{STATUS_DOT[ollama['running']]} Ollama \u2014 {'running' if ollama['running'] else 'offline'} \u00b7 {status['ollama_model']}",
             f"{STATUS_DOT[mcp_running]} MCP tools \u2014 {status['mcp_tools']}",
         ]
         return "\n".join(lines)
@@ -89,8 +140,8 @@ def _status_text(refresh: bool = False) -> str:
         return f"{STATUS_DOT[False]} Status unavailable \u2014 {error}"
 
 
-def _refresh_status() -> str:
-    return _status_text(refresh=True)
+def _refresh_all(provider: str):
+    return _status_text(refresh=True), refresh_models(provider)
 
 
 # ----------------------------------------------------------------- chat ---
@@ -121,7 +172,7 @@ async def answer_question(question: str, user_id: str, provider: str, history: l
         "",
     )
 
-    provider_key = provider.lower().replace(".", "").replace(" ", "")
+    provider_key = _provider_key(provider)
 
     if provider_key in {"ollama", "llamacpp"} and backend is not None:
         try:
@@ -196,16 +247,16 @@ def _quick_pdf_check(file_path: str) -> str | None:
     return None
 
 
-async def upload_document(file_path: str | None):
+async def upload_document(file_path: str | None, provider: str = "Llama.cpp"):
     if not file_path:
-        yield "Choose a PDF first.", _status_text(), _banner_text()
+        yield "Choose a PDF first.", _status_text(), _banner_text(), refresh_models(provider)
         return
     problem = _quick_pdf_check(file_path)
     if problem is not None:
-        yield problem, _status_text(), _banner_text()
+        yield problem, _status_text(), _banner_text(), refresh_models(provider)
         return
     name = Path(file_path).name
-    yield f"Reading {name}\u2026", _status_text(), _banner_text()
+    yield f"Reading {name}\u2026", _status_text(), _banner_text(), refresh_models(provider)
     try:
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -216,6 +267,7 @@ async def upload_document(file_path: str | None):
             "(first run downloads the embedding model once, ~500 MB — takes a few minutes)",
             _status_text(),
             _banner_text(),
+            refresh_models(provider),
         )
         # load_document/_try_start rebuild the index (PDF parse + embed),
         # which blocks — run it off the event loop so the UI doesn't freeze.
@@ -223,20 +275,20 @@ async def upload_document(file_path: str | None):
             message = await asyncio.to_thread(_try_start, str(destination))
         else:
             message = await asyncio.to_thread(backend.load_document, str(destination))
-        yield message, _status_text(refresh=True), _banner_text()
+        yield message, _status_text(refresh=True), _banner_text(), refresh_models(provider)
     except Exception as error:
-        yield f"Upload failed: {error}", _status_text(), _banner_text()
+        yield f"Upload failed: {error}", _status_text(), _banner_text(), refresh_models(provider)
 
 
-async def rebuild_index():
+async def rebuild_index(provider: str = "Llama.cpp"):
     if backend is None:
-        yield startup_error, _banner_text()
+        yield startup_error, _banner_text(), refresh_models(provider)
         return
-    yield "Rebuilding index\u2026", _banner_text()
+    yield "Rebuilding index\u2026", _banner_text(), refresh_models(provider)
     try:
-        yield await asyncio.to_thread(backend.rebuild_index), _banner_text()
+        yield await asyncio.to_thread(backend.rebuild_index), _banner_text(), refresh_models(provider)
     except Exception as error:
-        yield f"Rebuild failed: {error}", _banner_text()
+        yield f"Rebuild failed: {error}", _banner_text(), refresh_models(provider)
 
 
 async def switch_embeddings(choice: str):
@@ -297,7 +349,15 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
     with gr.Row():
         with gr.Column(scale=1, min_width=280):
             user_id = gr.Textbox(label="User ID", value="default")
-            provider = gr.Radio(PROVIDERS, value="Llama.cpp", label="Model")
+            provider = gr.Radio(PROVIDERS, value="Llama.cpp", label="Provider")
+            _initial_choices = _discovered_models("llamacpp")
+            _initial_current = _current_model("llamacpp")
+            model_dropdown = gr.Dropdown(
+                choices=_initial_choices,
+                value=_initial_current if _initial_current in _initial_choices else None,
+                label="Local model",
+                info="Installed models on this machine — picking one applies instantly.",
+            )
             embedding_choice = gr.Radio(
                 EMBEDDING_CHOICES,
                 value="Online" if (backend and backend.embedding_provider == "online") else "Local",
@@ -306,7 +366,8 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
             )
             system_status = gr.Markdown(_status_text())
             refresh = gr.Button("Refresh status", size="sm")
-            refresh.click(_refresh_status, outputs=system_status)
+            refresh.click(_refresh_all, inputs=provider, outputs=[system_status, model_dropdown])
+            provider.change(refresh_models, inputs=provider, outputs=model_dropdown)
             embedding_message = gr.Markdown()
             embedding_choice.change(switch_embeddings, inputs=embedding_choice, outputs=[embedding_message, system_status])
 
@@ -315,8 +376,8 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
             process = gr.Button("Process document", variant="primary")
             rebuild = gr.Button("Rebuild index", size="sm")
             document_message = gr.Markdown()
-            process.click(upload_document, inputs=pdf_upload, outputs=[document_message, system_status, setup_banner])
-            rebuild.click(rebuild_index, outputs=[document_message, setup_banner])
+            process.click(upload_document, inputs=[pdf_upload, provider], outputs=[document_message, system_status, setup_banner, model_dropdown])
+            rebuild.click(rebuild_index, inputs=provider, outputs=[document_message, setup_banner, model_dropdown])
 
             gr.Markdown("---")
             clear_memory = gr.Button("Clear my chat & memory", size="sm")
@@ -345,6 +406,7 @@ with gr.Blocks(title="Agentic_DocuChat", theme=gr.themes.Base(primary_hue="blue"
             not_helpful_state = gr.State("not helpful")
             helpful.click(save_feedback, inputs=[user_id, helpful_state], outputs=response_status)
             not_helpful.click(save_feedback, inputs=[user_id, not_helpful_state], outputs=response_status)
+            model_dropdown.change(select_model, inputs=[provider, model_dropdown], outputs=response_status)
             copy_answer.click(None, None, None, js=COPY_JS)
             export_btn.click(export_chat, inputs=chatbot, outputs=export_btn)
 
