@@ -14,7 +14,9 @@ composio==0.18.2
 composio-langchain==0.18.2
 gradio==5.50.0
 langchain-ollama==0.3.10
-langchain-openai==0.3.35
+# NOTE: langchain-openai must stay on 1.x — the 0.3.x series caps
+# langchain-core<1.0 and conflicts with the langchain 1.x family above.
+langchain-openai==1.7.0
 # --- evaluation (optional, only needed for eval/evaluate.py) ---
 deepeval==2.7.9
 pytest==8.3.5

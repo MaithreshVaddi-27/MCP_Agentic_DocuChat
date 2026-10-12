@@ -8,7 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Professional layout (v2.0.0): app code now lives in the `agentic_docuchat/` package (`app.py`, `rag_backend.py`, `persistent_memory.py`, `prompt_engineering.py`, `ollama_utils.py`, `llamacpp_utils.py`); `gradio_app.py` stays as a tiny launcher so `python gradio_app.py` keeps working; new `pyproject.toml` (metadata, pytest/ruff config) and `tests/__init__.py`. README, CONTRIBUTING, CI, and PR template updated for the new paths
 - Project display name → `Agentic_DocuChat` (UI title/header, prompts, docstrings, README, CONTRIBUTING; repo URL and folder unchanged)
-- Safe-minor dependency bumps (all verified on PyPI, same-major/minor series): `gradio 5.34.0→5.50.0`, `langchain 1.3.14→1.3.18`, `langgraph 1.2.10→1.2.14`, `langchain-google-genai 4.3.2→4.3.7`, `langchain-huggingface 1.2.2→1.2.3`, `langchain-text-splitters 1.1.2→1.1.3`, `sentence-transformers 5.1.0→5.1.2`, `transformers 4.48.0→4.48.3`, `pypdf 6.14.2→6.20.0`, `python-dotenv 1.2.2→1.2.4`, `composio(-langchain) 0.18.1→0.18.2`, `langchain-ollama 0.3.4→0.3.10`, `langchain-openai 0.3.27→0.3.35`, `deepeval 2.7.0→2.7.9`, `pytest 8.3.4→8.3.5`
+- Safe-minor dependency bumps (all verified on PyPI, `pip install -r requirements.txt` proven in a clean venv): `gradio 5.34.0→5.50.0`, `langchain 1.3.14→1.3.18`, `langgraph 1.2.10→1.2.14`, `langchain-google-genai 4.3.2→4.3.7`, `langchain-huggingface 1.2.2→1.2.3`, `langchain-text-splitters 1.1.2→1.1.3`, `sentence-transformers 5.1.0→5.1.2`, `transformers 4.48.0→4.48.3`, `pypdf 6.14.2→6.20.0`, `python-dotenv 1.2.2→1.2.4`, `composio(-langchain) 0.18.1→0.18.2`, `langchain-ollama 0.3.4→0.3.10`, `langchain-openai 0.3.27→1.7.0` (0.3.x caps `langchain-core<1.0` and conflicts with LangChain 1.x — must stay on 1.x), `deepeval 2.7.0→2.7.9`, `pytest 8.3.4→8.3.5`. Gradio stays on 5.x (v6 removed the `Chatbot(type=…)` API)
+- README rewritten: features, quickstart with OS details, config table, structure, troubleshooting (incl. the `langchain-openai` conflict row)
 - CI now tests Python 3.10–3.12 matrix (matches README's 3.10+ claim)
 - Sole maintainer: git history reattributed to `Maithresh Vaddi <maithreshvaddi16@gmail.com>`; `.mailmap` added; Cline checkpoint refs removed (local rewrite — needs `push --force-with-lease` to publish)
 - Default Gemini model → `gemini-3.5-flash-lite` (latest fastest/cost-efficient 3.5, per Google July 2026 release) in `.env.example`, backend default, README, and DeepEval judge
@@ -19,6 +20,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CONTRIBUTING.md`, `SECURITY.md`, CI workflow, PR template
 
 ### Fixed
+- `MAX_PDF_MB` was read by the code but missing from `.env.example` — added with docs
+- Singular page count ("Loaded x (1 page)"); `data/uploads/.gitkeep` is now tracked so fresh clones keep the folder
 - Windows SQLite teardown crash — WAL + `busy_timeout=30s`, `NamedTemporaryFile` tests (9/9 pass)
 - `database is locked` on concurrent asks — same WAL pragmas
 - `transformers==5.14.1` (nonexistent) → `4.48.0`; all deps pinned
