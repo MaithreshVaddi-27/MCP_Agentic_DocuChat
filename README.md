@@ -33,6 +33,7 @@ You + PDF  ──▶  Agentic_DocuChat reads & indexes  ──▶  you ask  ─�
 - [Evaluation](#evaluation)
 - [Project structure](#project-structure)
 - [Testing](#testing)
+- [Production use](#production-use)
 - [Troubleshooting](#troubleshooting)
 - [Security & contributing](#security--contributing)
 - [License](#license)
@@ -74,7 +75,8 @@ app with the same PDF skips re-embedding entirely.
 
 ## Quickstart
 
-**You need:** Python 3.10+, Git, and a Gemini API key ([get one free](https://aistudio.google.com/apikey)).
+**You need:** Python 3.10+, Git, ~2 GB free disk (dependencies + one-time ~500 MB embedding download),
+enough RAM for your chosen model, and a Gemini API key ([get one free](https://aistudio.google.com/apikey)).
 
 ```bash
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
@@ -130,6 +132,26 @@ cp .env.example .env   # Windows: copy .env.example .env
 | `RETRIEVAL_K` / `RETRIEVAL_FETCH_K` | `4` / `12` | MMR search depth (answer chunks / candidate pool) |
 | `RATE_LIMIT_SECONDS` | `1.5` | Per-user cooldown against double-clicks |
 | `GRADIO_SHARE` | `false` | Keep `false` for private docs |
+
+<details>
+<summary>Advanced tuning (click to expand — defaults are fine to start)</summary>
+
+| Variable | Default | What it does |
+|----------|---------|--------------|
+| `EMBEDDING_MODEL` / `EMBEDDING_MODEL_ONLINE` | `BAAI/bge-base-en-v1.5` / `models/text-embedding-004` | Local / Google embedding models |
+| `HF_TOKEN` | — | Only if HuggingFace rate-limits your embedding download |
+| `COMPOSIO_TOOLKITS` | `TAVILY` | Comma-separated toolkits for the Gemini agent |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | `700` / `100` | Splitter settings (rebuild index after changing) |
+| `CACHE_TTL_SECONDS` / `CACHE_MAX_ENTRIES` | `604800` / `2000` | Answer-cache lifetime and size cap |
+| `ANSWER_LOOP_MAX_ATTEMPTS` | `2` | `1` = answer once, `2` = one grounding-repair retry |
+| `OLLAMA_KEEP_ALIVE` / `OLLAMA_NUM_CTX` | `10m` / `4096` | Ollama model keep-alive and context window |
+| `LLAMACPP_API_KEY` / `LLAMACPP_NUM_CTX` | `not-needed` / `4096` | llama-server credentials label and context window |
+| `OLLAMA_STATUS_CACHE_SECONDS` / `LLAMACPP_STATUS_CACHE_SECONDS` | `15` / `15` | How long health probes are trusted |
+| `MEMORY_DATABASE` / `CHROMA_DIR` / `CHROMA_COLLECTION` | `./agentic_rag_memory.sqlite3` / `./chroma_langchain_db` / `agentic_rag_research_collection` | Where chats, vectors live (back these up) |
+| `LOG_LEVEL` | `INFO` | `DEBUG` for troubleshooting, `WARNING` for quiet |
+| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (auth off) | Required when `GRADIO_SHARE=true` — the app refuses to share without them |
+
+</details>
 
 The full commented list lives in [`.env.example`](.env.example) — every `os.getenv` in the code has a matching entry there.
 
@@ -202,6 +224,22 @@ python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_
 ```
 
 End-to-end needs a PDF + one working provider (Gemini key or local server).
+
+## Production use
+
+Running this beyond your own laptop? The checklist is short:
+
+- **Lock sharing down.** `GRADIO_SHARE=false` (default) plus `GRADIO_USERNAME`/`GRADIO_PASSWORD`
+  set — public sharing without credentials is refused at startup. Never expose the UI to
+  an untrusted network without login; the rate limit stops double-clicks, not attackers.
+  Prefer an SSH tunnel or an authenticated reverse proxy over a public port.
+- **Know what's yours to back up.** `agentic_rag_memory.sqlite3` (chats, facts, cache),
+  `data/uploads/` (your PDFs), `chroma_langchain_db/` (vectors). Everything else rebuilds.
+- **Pin and verify before upgrading.** Dependencies are pinned in `requirements.txt`
+  (`langchain-openai` must stay on 1.x); after any bump run the [Testing](#testing)
+  commands and one manual PDF question before deploying.
+- **Watch the first run.** The embedding model downloads once (~500 MB); after that,
+  restarts are fast and reopening the same PDF skips re-embedding entirely.
 
 ## Troubleshooting
 

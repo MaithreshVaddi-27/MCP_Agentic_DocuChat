@@ -46,6 +46,11 @@ desktop.ini
 *.swp
 *.swo
 
+# Gradio runtime (flagged examples, local certs) + version pin
+flagged/
+.gradio/
+.python-version
+
 # Logs & temp
 *.log
 *.tmp
