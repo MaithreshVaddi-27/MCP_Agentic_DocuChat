@@ -38,10 +38,11 @@ from langchain.tools import tool
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import InMemorySaver
 
-from .llamacpp_utils import llamacpp_status
-from .ollama_utils import ollama_status
-from .persistent_memory import PersistentMemory, ResponseCache
-from .prompt_engineering import (
+from ..llm.llamacpp import llamacpp_status
+from ..llm.ollama import ollama_status
+from ..mcp.tools import load_mcp_tools
+from .memory import PersistentMemory, ResponseCache
+from .prompts import (
     agent_system_prompt,
     build_context_package,
     needs_grounding_repair,
@@ -339,23 +340,11 @@ class RagBackend:
         return retrieve_from_pdf
 
     def _web_tools(self) -> list[Any]:
-        """Fetch Composio (MCP) tools. Toolkits are configurable via
-        COMPOSIO_TOOLKITS (comma-separated) so more than web search can be
-        wired in without touching code — e.g.
+        """Fetch Composio (MCP) tools — delegated to `mcp.tools` so the
+        backend never imports optional web-tool SDKs itself. Toolkits are
+        configurable via COMPOSIO_TOOLKITS (comma-separated), e.g.
         `COMPOSIO_TOOLKITS=TAVILY,GOOGLECALENDAR,GMAIL`."""
-        if not (self.composio_api_key and self.composio_user_id and self.composio_toolkits):
-            return []
-        try:
-            from composio import Composio
-            from composio_langchain import LangchainProvider
-
-            composio = Composio(api_key=self.composio_api_key, provider=LangchainProvider())
-            tools = composio.tools.get(user_id=self.composio_user_id, toolkits=self.composio_toolkits)
-            logger.info("Loaded %s Composio tool(s) from toolkits: %s", len(tools), ", ".join(self.composio_toolkits))
-            return tools
-        except Exception as error:
-            logger.warning("Composio tools disabled (%s): %s", ", ".join(self.composio_toolkits), error)
-            return []
+        return load_mcp_tools(self.composio_api_key, self.composio_user_id, self.composio_toolkits)
 
     def _get_tools(self) -> list[Any]:
         """Composio client construction + a tools.get() network call is

@@ -2,11 +2,11 @@ import os
 import tempfile
 import unittest
 
-from agentic_docuchat.persistent_memory import PersistentMemory
-from agentic_docuchat.prompt_engineering import needs_grounding_repair
+from agentic_docuchat.rag.memory import PersistentMemory
+from agentic_docuchat.rag.prompts import needs_grounding_repair
 
 try:
-    from agentic_docuchat.rag_backend import RagBackend
+    from agentic_docuchat.rag.backend import RagBackend
 except ImportError:  # light envs without the langchain stack skip these
     RagBackend = None
 

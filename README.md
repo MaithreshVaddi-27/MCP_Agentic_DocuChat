@@ -87,7 +87,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt   # first embedding download ~500 MB
 cp .env.example .env        # Windows: copy .env.example .env
 # paste your GEMINI_API_KEY into .env, then:
-python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 25 tests (16 skip gracefully without the full stack)
+python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 33 tests (22 skip gracefully without the full stack)
 python gradio_app.py
 ```
 
@@ -168,7 +168,7 @@ Green dot = ready. Red dot = the exact command to run is in [Troubleshooting](#t
 Not sure what's installed? This prints your live Ollama/llama.cpp models plus the `.env` lines to select them:
 
 ```bash
-python -m agentic_docuchat.local_models
+python -m agentic_docuchat.llm.models
 ```
 
 ## Usage
@@ -201,14 +201,18 @@ Aim for faithfulness **0.80+**. Full audit history: [`AUDIT_REPORT.md`](AUDIT_RE
 MCP_Agentic_DocuChat/
 ├── gradio_app.py              # Run this (tiny launcher)
 ├── agentic_docuchat/          # The app itself
-│   ├── app.py                 # Chat UI
-│   ├── rag_backend.py         # Indexing, providers, memory, cache (single source of truth)
-│   ├── persistent_memory.py   # Local SQLite (chats, facts, cache)
-│   ├── prompt_engineering.py  # Evidence packs + repair loop
-│   ├── local_models.py        # `python -m agentic_docuchat.local_models` — lists installed local models
-│   └── ollama_utils.py / llamacpp_utils.py   # Local-server health checks
+│   ├── app.py                 # Gradio UI (composition root)
+│   ├── rag/                   # Retrieval-augmented generation
+│   │   ├── backend.py         # Indexing, providers, memory, cache (single source of truth)
+│   │   ├── memory.py          # Local SQLite (chats, facts, cache)
+│   │   └── prompts.py         # Evidence packs + repair loop
+│   ├── llm/                   # Chat-model providers
+│   │   ├── ollama.py / llamacpp.py   # Local-server health checks
+│   │   └── models.py          # `python -m agentic_docuchat.llm.models` — lists installed local models
+│   └── mcp/                   # MCP tool integrations
+│       └── tools.py           # Composio loader (fail-closed, lazy)
 ├── eval/evaluate.py           # DeepEval quality suite
-├── tests/                     # 25 unit tests, all passing
+├── tests/                     # 33 unit tests, all passing
 ├── pyproject.toml / requirements.txt / .env.example
 └── data/  (PDFs go in data/uploads/)
 ```
@@ -219,7 +223,7 @@ Ignored at runtime: `.env`, `data/uploads/`, `chroma_langchain_db/`, `*.sqlite3`
 
 ```bash
 python -m unittest discover -s tests -p 'test_*.py'   # Windows: "test_*.py"
-python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py agentic_docuchat/local_models.py eval/evaluate.py
+python -m compileall -q gradio_app.py agentic_docuchat eval
 ```
 
 End-to-end needs a PDF + one working provider (Gemini key or local server).
@@ -260,7 +264,7 @@ Running this beyond your own laptop? The checklist is short:
 ## Security & contributing
 
 - **Security:** never commit `.env`; keep `GRADIO_SHARE=false` for private docs and set a login via `GRADIO_USERNAME`/`GRADIO_PASSWORD` whenever the UI leaves your machine; PDFs, chats, and memories stay on your disk (online embeddings/Gemini send text to Google). Full policy: [`SECURITY.md`](SECURITY.md). The rate limit stops double-clicks, not attackers — don't expose the UI unauthenticated.
-- **Contributing:** small, focused PRs; `agentic_docuchat/rag_backend.py` is the single source of truth; behavior changes need tests. Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Contributing:** small, focused PRs; `agentic_docuchat/rag/backend.py` is the single source of truth; behavior changes need tests. Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 

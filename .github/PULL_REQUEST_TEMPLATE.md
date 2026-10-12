@@ -6,8 +6,8 @@
 
 ## How I verified
 
-- [ ] `python -m py_compile gradio_app.py agentic_docuchat/app.py agentic_docuchat/rag_backend.py agentic_docuchat/persistent_memory.py agentic_docuchat/ollama_utils.py agentic_docuchat/llamacpp_utils.py agentic_docuchat/prompt_engineering.py agentic_docuchat/local_models.py eval/evaluate.py`
-- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (25 tests)
+- [ ] `python -m compileall -q gradio_app.py agentic_docuchat eval`
+- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (33 tests)
 - [ ] Manual run: `python gradio_app.py` + asked a PDF question
 
 ## Docs / config

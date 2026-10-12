@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Micro-architecture (v3.0.0, breaking import paths): `agentic_docuchat/rag/` (`backend.py`, `memory.py`, `prompts.py`), `agentic_docuchat/llm/` (`ollama.py`, `llamacpp.py`, `models.py`), `agentic_docuchat/mcp/` (`tools.py`, Composio loading extracted from the backend, fail-closed); `app.py` stays the UI composition root. Compile checks simplified to `python -m compileall -q gradio_app.py agentic_docuchat eval` everywhere
 - Gradio 5.50 → **6.30** (migrated `Blocks(theme=…)` → `launch(theme=…)`, dropped removed `Chatbot(type=…)`), which forced the embedding stack forward: `transformers` 4.48.3 → **5.19.0**, `sentence-transformers` 5.1.2 → **6.1.0** (gradio 6 needs `huggingface-hub>=1.16`, transformers 4 caps `<1.0` — full clean-venv install proven)
 - Login decoupled from sharing: real `GRADIO_USERNAME`/`GRADIO_PASSWORD` now protect the UI everywhere, and `--share`/public URLs still refuse to start without them (`_resolve_share_auth`, unit-tested)
 - `.env.example`: fixed stale header comment, moved misplaced `ANSWER_LOOP_MAX_ATTEMPTS` next to `RATE_LIMIT_SECONDS`, noted the UI dropdown overrides `OLLAMA_MODEL` (all 37 vars verified read by code — none unwanted)

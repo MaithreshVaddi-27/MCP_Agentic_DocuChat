@@ -17,7 +17,7 @@ from pathlib import Path
 import gradio as gr
 from dotenv import load_dotenv
 
-from .rag_backend import RagBackend
+from .rag.backend import RagBackend
 
 load_dotenv()
 

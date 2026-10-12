@@ -4,7 +4,7 @@ Ollama and llama.cpp both say what they have over plain HTTP — this module
 asks them and prints a friendly summary plus the exact `.env` lines that
 select what it found. No API keys, no downloads, stdlib only.
 
-Run:  python -m agentic_docuchat.local_models
+Run:  python -m agentic_docuchat.llm.models
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from .llamacpp_utils import llamacpp_status
-from .ollama_utils import ollama_status
+from .llamacpp import llamacpp_status
+from .ollama import ollama_status
 
 
 def fetch_local_models(
