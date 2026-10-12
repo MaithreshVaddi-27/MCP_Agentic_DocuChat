@@ -674,7 +674,9 @@ class RagBackend:
         self._agents.clear()  # tools/checkpointer tied to the prior document
         self._refresh_index()
         self.cache.clear()
-        return f"Loaded {Path(document_path).name} ({len(self.documents)} pages)."
+        page_count = len(self.documents)
+        plural = "" if page_count == 1 else "s"
+        return f"Loaded {Path(document_path).name} ({page_count} page{plural})."
 
     def rebuild_index(self) -> str:
         self._agents.clear()
