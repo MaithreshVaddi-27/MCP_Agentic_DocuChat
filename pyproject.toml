@@ -37,9 +37,6 @@ Issues = "https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/issues"
 where = ["."]
 include = ["agentic_docuchat*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-
 [tool.ruff]
 line-length = 100
 target-version = "py310"

@@ -8,8 +8,8 @@ there's no such thing as a silly question in a review.
 ```bash
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
-python3 -m venv avenv
-source avenv/bin/activate   # Windows: .\avenv\Scripts\Activate.ps1
+python3 -m venv venv
+source venv/bin/activate   # Windows: .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 cp .env.example .env        # Windows: copy .env.example .env

@@ -56,8 +56,8 @@ brew install python@3.11 git
 # 2. Clone and set up a virtual environment
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
-python3.11 -m venv avenv
-source avenv/bin/activate
+python3.11 -m venv venv
+source venv/bin/activate
 
 # 3. Install dependencies
 python -m pip install --upgrade pip
@@ -103,8 +103,8 @@ sudo dnf install -y python3.11 python3.11-devel git gcc
 # 2. Clone and set up
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
-python3.11 -m venv avenv
-source avenv/bin/activate
+python3.11 -m venv venv
+source venv/bin/activate
 
 # 3. Install dependencies
 python -m pip install --upgrade pip
@@ -156,8 +156,8 @@ py -3.11 --version
 # 2. Clone and set up
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
-py -3.11 -m venv avenv
-.\avenv\Scripts\Activate.ps1
+py -3.11 -m venv venv
+.\venv\Scripts\Activate.ps1
 
 # 3. Install dependencies
 python -m pip install --upgrade pip
@@ -175,8 +175,8 @@ python gradio_app.py
 ```bat
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
-py -3.11 -m venv avenv
-avenv\Scripts\activate.bat
+py -3.11 -m venv venv
+venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 copy .env.example .env

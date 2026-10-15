@@ -23,7 +23,7 @@ from .discovery import mlx_models_on_disk
 def mlx_status(base_url: str = "http://localhost:8081/v1", timeout: float = 2.0) -> dict[str, Any]:
     """Ping the MLX server's /v1/models endpoint.
 
-    Returns a dict shaped like the one ollama_utils.ollama_status() returns
+    Returns a dict shaped like the one llm.ollama.ollama_status() returns
     so the rest of the app (status panel, error messages) can treat every
     local provider the same way.
     """

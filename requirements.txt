@@ -9,7 +9,6 @@ langchain-google-genai==4.3.7
 langchain-huggingface==1.2.3
 langchain-chroma==1.1.0
 langchain-text-splitters==1.1.3
-requests==2.34.2
 composio==0.18.2
 composio-langchain==0.18.2
 gradio==6.30.0
@@ -19,4 +18,5 @@ langchain-ollama==0.3.10
 langchain-openai==1.7.0
 # --- evaluation (optional, only needed for eval/evaluate.py) ---
 deepeval==2.7.9
-pytest==8.3.5
+# --- development (only needed to run the lint step in CI / CONTRIBUTING) ---
+ruff==0.17.0

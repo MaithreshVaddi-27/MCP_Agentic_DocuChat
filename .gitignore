@@ -1,6 +1,8 @@
-# Secrets — never commit real keys
+# Secrets — never commit real keys.
+# The template stays tracked; every other .env.* variant is treated as secret.
 .env
-.env.local
+.env.*
+!/.env.example
 *.env
 
 # Vector store + memory (runtime generated, per-machine)
@@ -19,7 +21,6 @@ __pycache__/
 *$py.class
 venv/
 .venv/
-avenv/
 .env_venv/
 *.egg-info/
 dist/
@@ -46,6 +47,15 @@ desktop.ini
 *.swp
 *.swo
 
+# Model weights — this project downloads LLMs, keep them out of git
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+models/
+local_models/
+
 # Gradio runtime (flagged examples, local certs) + version pin
 flagged/
 .gradio/
@@ -56,4 +66,13 @@ flagged/
 *.tmp
 tmp/
 temp/
+
+# Merge / editor leftovers
+*.orig
+*.rej
+*.bak
+*~
+
+# Notebooks
+.ipynb_checkpoints/
 
