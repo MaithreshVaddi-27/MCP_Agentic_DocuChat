@@ -62,14 +62,14 @@ def _describe(provider: str, info: dict[str, Any]) -> str:
     """One status line: live server if up, otherwise what is waiting on disk."""
     if info["running"]:
         served = ", ".join(info["models"]) or "(server up, no models loaded)"
-        return f"{provider} ({info['base_url']}): running — {served}"
+        return f"{provider} ({info['base_url']}): running, serving {served}"
     on_disk = info.get("models_on_disk") or []
     if on_disk:
         found = ", ".join(on_disk[:4]) + (f" (+{len(on_disk) - 4} more)" if len(on_disk) > 4 else "")
         return (
-            f"{provider} ({info['base_url']}): offline — {len(on_disk)} model(s) already on disk: {found}"
+            f"{provider} ({info['base_url']}): offline. {len(on_disk)} model(s) already on disk: {found}"
         )
-    return f"{provider} ({info['base_url']}): offline — nothing on disk yet"
+    return f"{provider} ({info['base_url']}): offline, nothing on disk yet"
 
 
 def main() -> None:

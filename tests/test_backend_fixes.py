@@ -272,7 +272,10 @@ class RateLimitMapTests(unittest.TestCase):
         be._check_rate_limit("alice")
         with self.assertRaises(RuntimeError) as ctx:
             be._check_rate_limit("alice")
-        self.assertIn("wait", str(ctx.exception))
+        # Assert the contract (a wait time is quoted), not one exact wording.
+        message = str(ctx.exception).lower()
+        self.assertIn("wait", message)
+        self.assertIn("fast", message)
 
 
 @unittest.skipIf(RagBackend is None, "needs full backend deps (langchain stack)")

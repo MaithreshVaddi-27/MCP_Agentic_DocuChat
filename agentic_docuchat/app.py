@@ -68,8 +68,8 @@ def _try_start(path: str | None = None) -> str:
         return f"Setup needed: {startup_error}"
     startup_error = ""
     if not backend.document_ready:
-        return "Backend is ready — upload a PDF to get started."
-    return f"Backend is ready — {Path(backend.document_path).name} loaded."
+        return "Backend is ready. Upload a PDF to get started."
+    return f"Backend is ready. {Path(backend.document_path).name} loaded."
 
 
 _try_start()
@@ -118,7 +118,7 @@ def select_model(provider: str, model: str | None):
     if backend is None:
         return startup_error or "The backend is not ready yet."
     if not model:
-        return "No local model to select — start Ollama, llama.cpp, or MLX first."
+        return "No local model to pick yet. Start Ollama, llama.cpp or MLX first."
     key = _provider_key(provider)
     try:
         if key == "ollama":
@@ -127,7 +127,7 @@ def select_model(provider: str, model: str | None):
             return backend.set_llamacpp_model(model)
         elif key == "mlx":
             return backend.set_mlx_model(model)
-        return "The model picker is for Ollama, llama.cpp, and MLX — Gemini uses GEMINI_MODEL from .env."
+        return "The model picker covers Ollama, llama.cpp and MLX. Gemini reads GEMINI_MODEL from .env."
     except Exception as error:
         return f"Couldn't switch model: {error}"
 
@@ -269,7 +269,7 @@ def _quick_pdf_check(file_path: str) -> str | None:
     backend init — suffix + magic bytes, so a wrong file fails in a blink
     instead of after a minutes-long model download."""
     if Path(file_path).suffix.lower() != ".pdf":
-        return "Please upload a .pdf file — that's all I can read right now."
+        return "Please upload a .pdf file. That is all I can read right now."
     try:
         with open(file_path, "rb") as handle:
             header = handle.read(5)
@@ -301,7 +301,7 @@ async def upload_document(file_path: str | None, provider: str = "Llama.cpp"):
             shutil.copy2(file_path, destination)
         yield (
             f"Building the search index for {name}\u2026 "
-            "(first run downloads the embedding model once, ~1.3 GB — takes a few minutes)",
+            "(the first run downloads the embedding model, about 1.3 GB, so give it a few minutes)",
             _status_text(),
             _banner_text(),
             refresh_models(provider),
@@ -404,7 +404,7 @@ with gr.Blocks(title="MCP_Agentic_DocuChat") as demo:
                 choices=_initial_choices,
                 value=_initial_current if _initial_current in _initial_choices else None,
                 label="Local model",
-                info="Installed models on this machine — picking one applies instantly.",
+                info="Models already on this machine. Picking one applies straight away.",
             )
             embedding_choice = gr.Radio(
                 EMBEDDING_CHOICES,

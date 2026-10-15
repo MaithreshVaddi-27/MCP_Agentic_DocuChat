@@ -207,12 +207,12 @@ class RagBackend:
         if self.retrieval_fetch_k < self.retrieval_k:
             raise RuntimeError("RETRIEVAL_FETCH_K must be >= RETRIEVAL_K.")
         logger.info(
-            "Config OK — embeddings=%s (%s), document=%s",
+            "Config OK: embeddings=%s (%s), document=%s",
             self.embedding_provider,
             self.embedding_model_online
             if self.embedding_provider == "online"
             else self.embedding_model_name,
-            self.document_path or "(none yet — upload a PDF)",
+            self.document_path or "(none yet, upload a PDF)",
         )
 
     def _check_rate_limit(self, user_id: str) -> None:
@@ -220,7 +220,7 @@ class RagBackend:
         last = self._last_request_time.get(user_id)
         if last is not None and (now - last) < self.rate_limit_seconds:
             wait = round(self.rate_limit_seconds - (now - last), 1)
-            raise RuntimeError(f"You're asking a bit fast — wait {wait}s and try again.")
+            raise RuntimeError(f"You are asking a bit fast. Wait {wait}s and try again.")
         # user_id is user-supplied text, so this map would grow forever on a
         # long-running server. Evict the coldest entries once it's oversized.
         if len(self._last_request_time) >= self.rate_limit_max_users:
@@ -343,12 +343,12 @@ class RagBackend:
         if not path.exists():
             raise RuntimeError(f"I couldn't find that file: {self.document_path}")
         if path.suffix.lower() != ".pdf":
-            raise RuntimeError("Please upload a .pdf file — that's all I can read right now.")
+            raise RuntimeError("Please upload a .pdf file. That is all I can read right now.")
         max_mb = float(os.getenv("MAX_PDF_MB", "50"))
         size_mb = path.stat().st_size / (1024 * 1024)
         if size_mb > max_mb:
             raise RuntimeError(
-                f"That PDF is {size_mb:.1f} MB — the limit is {max_mb:.0f} MB. "
+                f"That PDF is {size_mb:.1f} MB and the limit is {max_mb:.0f} MB. "
                 "Try a smaller file or a single chapter."
             )
         try:
@@ -611,7 +611,7 @@ class RagBackend:
         same_family = [name for name in installed if name.split(":", 1)[0] == model_base]
         available = ", ".join(installed[:6]) or "none"
         hint = (
-            f" You have {', '.join(same_family)} — either run "
+            f" You have {', '.join(same_family)}, so either run "
             f"`ollama pull {configured}` or set `OLLAMA_MODEL` to one of those."
             if same_family
             else f" Run `ollama pull {configured}`."
