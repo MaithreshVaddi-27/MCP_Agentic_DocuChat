@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from .discovery import start_hint
 from .llamacpp import llamacpp_status
 from .mlx import mlx_status
 from .ollama import ollama_status
@@ -57,28 +58,36 @@ def suggest_env(models: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _describe(provider: str, info: dict[str, Any]) -> str:
+    """One status line: live server if up, otherwise what is waiting on disk."""
+    if info["running"]:
+        served = ", ".join(info["models"]) or "(server up, no models loaded)"
+        return f"{provider} ({info['base_url']}): running — {served}"
+    on_disk = info.get("models_on_disk") or []
+    if on_disk:
+        found = ", ".join(on_disk[:4]) + (f" (+{len(on_disk) - 4} more)" if len(on_disk) > 4 else "")
+        return (
+            f"{provider} ({info['base_url']}): offline — {len(on_disk)} model(s) already on disk: {found}"
+        )
+    return f"{provider} ({info['base_url']}): offline — nothing on disk yet"
+
+
 def main() -> None:
     """Print what was found and the `.env` snippet to use it."""
     models = fetch_local_models()
     for provider in ("ollama", "llamacpp", "mlx"):
-        info = models[provider]
-        if info["running"]:
-            found = ", ".join(info["models"]) or "(server up, no models pulled yet)"
-            print(f"{provider} ({info['base_url']}): running — {found}")
-        else:
-            print(f"{provider} ({info['base_url']}): offline")
+        print(_describe(provider, models[provider]))
+
     suggestions = suggest_env(models)
     if suggestions:
         print("\nSuggested .env:")
         for line in suggestions:
             print(f"  {line}")
-    else:
-        print(
-            "\nNo local models found. Start something first:\n"
-            "  ollama serve  →  ollama pull gemma3:4b\n"
-            "  llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080\n"
-            "  mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081"
-        )
+        return
+
+    print("\nNo provider is serving right now. Start one:")
+    for provider in ("ollama", "llamacpp", "mlx"):
+        print(f"  {start_hint(provider)}")
 
 
 if __name__ == "__main__":

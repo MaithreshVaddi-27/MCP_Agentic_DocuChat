@@ -17,6 +17,7 @@ from pathlib import Path
 import gradio as gr
 from dotenv import load_dotenv
 
+from .llm.discovery import start_hint
 from .rag.backend import RagBackend
 
 load_dotenv()
@@ -56,15 +57,19 @@ THEME_TOGGLE_JS = """
 # --------------------------------------------------------------- backend ---
 
 def _try_start(path: str | None = None) -> str:
+    """Build the backend. With no path it comes up ready-but-empty, waiting
+    for a PDF from the upload control — only a genuine failure is an error."""
     global backend, startup_error
     try:
         backend = RagBackend(document_path=path)
-        startup_error = ""
-        return f"Backend is ready — {Path(backend.document_path).name} loaded."
     except Exception as error:
         backend = None
         startup_error = str(error)
         return f"Setup needed: {startup_error}"
+    startup_error = ""
+    if not backend.document_ready:
+        return "Backend is ready — upload a PDF to get started."
+    return f"Backend is ready — {Path(backend.document_path).name} loaded."
 
 
 _try_start()
@@ -127,24 +132,43 @@ def select_model(provider: str, model: str | None):
         return f"Couldn't switch model: {error}"
 
 
+def _provider_line(label: str, key: str, info: dict, model_name: str) -> str:
+    """Status dot, live model when the server is up, and \u2014 when it is
+    down \u2014 how many models are already waiting on disk, and the exact
+    command that brings the provider up with them."""
+    dot = STATUS_DOT[bool(info.get("running"))]
+    if info.get("running"):
+        served = info.get("models") or []
+        # A green dot next to a model the server does not serve is a lie the
+        # user only discovers as a 404 on their first question.
+        mismatch = "" if not served or model_name in served else "  (not installed \u2014 pick one below)"
+        return f"{dot} {label} \u2014 running \u00b7 {model_name}{mismatch}"
+    waiting = len(info.get("models_on_disk") or [])
+    if waiting:
+        return f"{dot} {label} \u2014 offline \u00b7 {waiting} model(s) on disk \u00b7 `{start_hint(key)}`"
+    return f"{dot} {label} \u2014 offline \u00b7 {model_name}"
+
+
 def _status_text(refresh: bool = False) -> str:
     if backend is None:
         return f"{STATUS_DOT[False]} Backend not ready \u2014 {startup_error}"
     try:
         status = backend.status(refresh=refresh)
-        ollama = status["ollama"]
-        llamacpp = status["llamacpp"]
-        mlx = status["mlx"]
-        mcp_running = status["mcp_tools"] != "off"
-        lines = [
-            f"Document: {status['document']} ({status['pages']} pages)",
-            f"Embeddings: {status['embedding_model']}",
-            f"{STATUS_DOT[llamacpp['running']]} llama.cpp \u2014 {'running' if llamacpp['running'] else 'offline'} \u00b7 {status['llamacpp_model']}",
-            f"{STATUS_DOT[ollama['running']]} Ollama \u2014 {'running' if ollama['running'] else 'offline'} \u00b7 {status['ollama_model']}",
-            f"{STATUS_DOT[mlx['running']]} MLX \u2014 {'running' if mlx['running'] else 'offline'} \u00b7 {status['mlx_model']}",
-            f"{STATUS_DOT[mcp_running]} MCP tools \u2014 {status['mcp_tools']}",
-        ]
-        return "\n".join(lines)
+        document = (
+            f"Document: {status['document']} ({status['pages']} pages)"
+            if status["document_ready"]
+            else f"No document loaded \u2014 {status['document_error'] or 'upload a PDF to get started.'}"
+        )
+        return "\n".join(
+            (
+                document,
+                f"Embeddings: {status['embedding_model']}",
+                _provider_line("llama.cpp", "llamacpp", status["llamacpp"], status["llamacpp_model"]),
+                _provider_line("Ollama", "ollama", status["ollama"], status["ollama_model"]),
+                _provider_line("MLX", "mlx", status["mlx"], status["mlx_model"]),
+                f"{STATUS_DOT[status['mcp_tools'] != 'off']} MCP tools \u2014 {status['mcp_tools']}",
+            )
+        )
     except Exception as error:
         return f"{STATUS_DOT[False]} Status unavailable \u2014 {error}"
 
@@ -270,7 +294,11 @@ async def upload_document(file_path: str | None, provider: str = "Llama.cpp"):
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
         destination = upload_dir / Path(file_path).name
-        shutil.copy2(file_path, destination)
+        # Gradio hands over a temp path, but a PDF already sitting in
+        # data/uploads (where the README tells you to keep yours) resolves to
+        # the same file, and copy2 refuses to copy a file onto itself.
+        if Path(file_path).resolve() != destination.resolve():
+            shutil.copy2(file_path, destination)
         yield (
             f"Building the search index for {name}\u2026 "
             "(first run downloads the embedding model once, ~1.3 GB — takes a few minutes)",

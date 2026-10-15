@@ -18,8 +18,19 @@ cp .env.example .env        # Windows: copy .env.example .env
 ## Before you push
 
 ```bash
-python -m compileall -q gradio_app.py agentic_docuchat eval
-python -m unittest discover -s tests -p 'test_*.py'   # must be OK — 35 tests (22 skip without the full stack)
+python -m ruff check .                                # must be clean
+python -m compileall -q gradio_app.py agentic_docuchat eval tests
+python -m unittest discover -s tests -p 'test_*.py'   # must be OK — 101 tests, none skipped on a full install
+```
+
+The suite is self-contained: it builds throwaway Ollama / Hugging Face layouts in temp
+directories, so it never depends on which models are installed on your machine. Tests
+needing the full LangChain stack skip themselves cleanly in a light environment.
+
+If you touch a provider, also check it live:
+
+```bash
+python -m agentic_docuchat.llm.models   # probes each runtime + lists models on disk
 ```
 
 ## Rules

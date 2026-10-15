@@ -17,7 +17,35 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
-      - run: python -m ruff check --select F agentic_docuchat/ eval/ tests/ gradio_app.py
-      - run: python -m compileall -q gradio_app.py agentic_docuchat eval
-      - run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Lint
+        run: python -m ruff check .
+      - name: Compile
+        run: python -m compileall -q gradio_app.py agentic_docuchat eval tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Smoke test — backend boots with no document
+        # The app must come up on a fresh clone, where no PDF exists yet
+        # because uploads are git-ignored. Guards the regression where a
+        # missing DOCUMENT_PATH took the whole UI down.
+        run: |
+          python - <<'PY'
+          import agentic_docuchat.app as app
+          assert app.backend is not None, f"backend failed to start: {app.startup_error}"
+          assert app.backend.document_ready is False, "expected no document on a fresh clone"
+          assert "upload a PDF" in app._status_text()
+          print("boots empty: ok")
+          PY
 
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build
+      # The distribution metadata must stay importable/buildable, not just
+      # the source tree.
+      - run: python -m build
+      - run: python -m pip install dist/*.whl
+      - run: python -c "import agentic_docuchat; print(agentic_docuchat.__version__)"

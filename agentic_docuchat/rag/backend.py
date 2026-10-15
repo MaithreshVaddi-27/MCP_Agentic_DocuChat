@@ -27,14 +27,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-import requests
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
+from langchain.tools import tool
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.tools import tool
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -62,6 +61,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agentic_docuchat")
 
+# Some OpenAI-compatible servers (mlx_lm among them) return the reply in a
+# non-standard `reasoning` field and leave `content` null when a reasoning
+# model spends its whole token budget thinking. Streaming that on would show
+# an endless "…", so say what actually happened instead.
+EMPTY_ANSWER_NOTICE = (
+    "The model returned an empty answer. This usually means a reasoning/"
+    "thinking model used up its token budget before replying. Pick a model "
+    "without a thinking mode, or give the server more tokens "
+    "(`--max-tokens` for mlx_lm.server, `--ctx-size`/server defaults for "
+    "llama.cpp)."
+)
+
 
 async def _invoke_with_retry(model, payload, retries: int = 2, base_delay: float = 0.6):
     """Call model.ainvoke with exponential-backoff retries.
@@ -87,7 +98,10 @@ class RagBackend:
     """Manage document indexing, provider selection, memory, and response caching."""
 
     def __init__(self, document_path: str | None = None) -> None:
-        self.document_path = document_path or os.getenv("DOCUMENT_PATH", "./data/research_paper.pdf")
+        # Documents arrive through the UI's upload control, not from a
+        # configured path: a PDF on disk is not something the app should go
+        # hunting for on someone else's machine. Start with no document.
+        self.document_path = document_path
 
         # Embeddings: "local" runs a HuggingFace sentence-transformer on
         # this machine (private, no API calls); "online" calls Google's
@@ -141,6 +155,7 @@ class RagBackend:
         self.retrieval_k = int(os.getenv("RETRIEVAL_K", "4"))
         self.retrieval_fetch_k = int(os.getenv("RETRIEVAL_FETCH_K", "12"))
         self.rate_limit_seconds = float(os.getenv("RATE_LIMIT_SECONDS", "1.5"))
+        self.rate_limit_max_users = max(16, int(os.getenv("RATE_LIMIT_MAX_USERS", "1024")))
 
         self._validate_config()
 
@@ -156,6 +171,8 @@ class RagBackend:
         self._models: dict[str, Any] = {}
         self._agents: dict[str, Any] = {}
         self._tools_cache: list[Any] | None = None
+        self._chroma_client: Any = None
+        self.collection_name = ""
         self._ollama_status_cache: dict[str, Any] | None = None
         self._ollama_status_time: float = 0.0
         self._llamacpp_status_cache: dict[str, Any] | None = None
@@ -164,6 +181,12 @@ class RagBackend:
         self._mlx_status_time: float = 0.0
         self._last_request_time: dict[str, float] = {}
         self.document_version = ""
+        # A fresh clone has no data/*.pdf (they're git-ignored for privacy),
+        # so "no document yet" is the *normal* startup state, not a failure.
+        # The backend must still construct so the model picker, status panel,
+        # and memory controls work before the first upload.
+        self.document_ready = False
+        self.document_error = ""
 
         self._refresh_index()
 
@@ -186,8 +209,10 @@ class RagBackend:
         logger.info(
             "Config OK — embeddings=%s (%s), document=%s",
             self.embedding_provider,
-            self.embedding_model_online if self.embedding_provider == "online" else self.embedding_model_name,
-            self.document_path,
+            self.embedding_model_online
+            if self.embedding_provider == "online"
+            else self.embedding_model_name,
+            self.document_path or "(none yet — upload a PDF)",
         )
 
     def _check_rate_limit(self, user_id: str) -> None:
@@ -196,35 +221,120 @@ class RagBackend:
         if last is not None and (now - last) < self.rate_limit_seconds:
             wait = round(self.rate_limit_seconds - (now - last), 1)
             raise RuntimeError(f"You're asking a bit fast — wait {wait}s and try again.")
+        # user_id is user-supplied text, so this map would grow forever on a
+        # long-running server. Evict the coldest entries once it's oversized.
+        if len(self._last_request_time) >= self.rate_limit_max_users:
+            for stale in sorted(self._last_request_time, key=self._last_request_time.get)[: self.rate_limit_max_users // 4 or 1]:
+                del self._last_request_time[stale]
         self._last_request_time[user_id] = now
 
     # ---------------------------------------------------------------- index
 
-    def _document_version(self, force_nonce: str = "") -> str:
+    def _client(self):
+        """One shared Chroma client for this app.
+
+        LangChain opens its own handle on the same directory; sharing a
+        single client is what makes collection lifecycle (list / delete)
+        possible without a second PersistentClient racing the first.
+        """
+        if self._chroma_client is None:
+            import chromadb
+
+            self._chroma_client = chromadb.PersistentClient(path=self.chroma_dir)
+        return self._chroma_client
+
+    def _document_fingerprint(self) -> str:
+        """Identity of (document bytes + embedding space).
+
+        Two runs with the same fingerprint can share a Chroma collection;
+        anything else must not — vectors from different documents or
+        different embedding models are not comparable.
+        """
         embedding_key = (
             f"online:{self.embedding_model_online}"
             if self.embedding_provider == "online"
             else f"local:{self.embedding_model_name}"
         )
-        path = Path(self.document_path)
-        if path.exists():
-            return f"{path.resolve()}:{path.stat().st_mtime_ns}:{path.stat().st_size}:{embedding_key}:{force_nonce}"
-        return f"{self.document_path}:{embedding_key}:{force_nonce}"
+        path = Path(self.document_path) if self.document_path else None
+        if path is not None and path.exists():
+            stat = path.stat()
+            return f"{path.resolve()}:{stat.st_mtime_ns}:{stat.st_size}:{embedding_key}"
+        return f"{self.document_path or '(none)'}:{embedding_key}"
 
-    def _refresh_index(self, force_nonce: str = "") -> None:
-        new_version = self._document_version(force_nonce)
-        if new_version == self.document_version and getattr(self, "vector_store", None) is not None:
-            # Same document, same embedding config, no forced rebuild —
-            # nothing changed since the last build, skip re-reading and
-            # re-embedding the PDF entirely.
+    def _collection_name(self, fingerprint: str) -> str:
+        base = os.getenv("CHROMA_COLLECTION", "agentic_rag_research_collection")
+        return f"{base}_{hashlib.sha1(fingerprint.encode()).hexdigest()[:10]}"
+
+    def _sweep_collections(self, keep: str) -> None:
+        """Delete sibling collections left by earlier builds.
+
+        Rebuild used to mint a fresh suffixed collection every time, so the
+        vector store grew by one full copy of the document per rebuild (three
+        stale copies were sitting on disk). The name is now deterministic and
+        a rebuild resets in place, so anything else under our own prefix is by
+        definition superseded. Only collections prefixed with CHROMA_COLLECTION
+        are ever touched — unrelated collections in the same directory are
+        left alone.
+        """
+        base = os.getenv("CHROMA_COLLECTION", "agentic_rag_research_collection")
+        try:
+            client = self._client()
+            collections = list(client.list_collections())
+        except Exception as error:
+            # Housekeeping only — a locked or unhappy Chroma must never fail an
+            # index build that already succeeded. Worst case some stale copies
+            # stay on disk.
+            logger.warning("Skipped stale-collection sweep: %s", error)
+            return
+        for collection in collections:
+            name = collection if isinstance(collection, str) else collection.name
+            if name == keep or not name.startswith(f"{base}_"):
+                continue
+            try:
+                client.delete_collection(name=name)
+                logger.info("Removed superseded vector collection %s", name)
+            except Exception as error:
+                logger.warning("Could not remove stale collection %s: %s", name, error)
+
+    def _refresh_index(self, *, force: bool = False, strict: bool = False) -> None:
+        """Build or reuse the vector index for the current document.
+
+        Never fatal unless `strict`. A missing document is the *normal*
+        state of a fresh clone (data/*.pdf is git-ignored), and the UI has
+        to stay usable — model picker, status, memory — until the first
+        upload — so a boot with no PDF must not take the whole app down.
+        """
+        if not self.document_path:
+            # Nothing uploaded yet. Not an error — the UI stays fully usable.
+            self.documents, self.vector_store = [], None
+            self.document_ready = False
+            self.document_error = ""
+            self.document_version = ""
+            return
+        fingerprint = self._document_fingerprint()
+        if not force and fingerprint == self.document_version and self.document_ready:
+            # Same document, same embedding config, nothing forced —
+            # skip re-reading and re-embedding the PDF entirely.
             logger.debug("Index unchanged, skipping rebuild for %s", self.document_path)
             return
-        self.document_version = new_version
-        base_collection = os.getenv("CHROMA_COLLECTION", "agentic_rag_research_collection")
-        collection_suffix = hashlib.sha1(self.document_version.encode()).hexdigest()[:10]
-        self.collection_name = f"{base_collection}_{collection_suffix}"
+        self.document_version = fingerprint
+        self.collection_name = self._collection_name(fingerprint)
         logger.info("Building index for %s (collection %s)", self.document_path, self.collection_name)
-        self.documents, self.vector_store = self._build_index()
+        try:
+            self.documents, self.vector_store = self._build_index(reset=force)
+        except RuntimeError as error:
+            self.documents, self.vector_store = [], None
+            self.document_ready = False
+            self.document_error = str(error)
+            if strict:
+                raise
+            logger.warning("No document index available: %s", error)
+            return
+        self.document_ready = True
+        self.document_error = ""
+        # Only after a successful build: a failed boot must not delete a
+        # perfectly good index the user may switch back to.
+        self._sweep_collections(keep=self.collection_name)
 
     def _load_documents(self):
         path = Path(self.document_path)
@@ -250,9 +360,7 @@ class RagBackend:
         except RuntimeError:
             raise
         except FileNotFoundError as error:
-            raise RuntimeError(f"DOCUMENT_PATH not found: {self.document_path}") from error
-        except requests.exceptions.RequestException as error:
-            raise RuntimeError(f"Could not fetch DOCUMENT_PATH: {error}") from error
+            raise RuntimeError(f"I couldn't find that file: {self.document_path}") from error
         except Exception as error:
             raise RuntimeError(f"Could not load PDF: {error}") from error
         if not documents:
@@ -289,7 +397,7 @@ class RagBackend:
             self._embedding_models[key] = HuggingFaceEmbeddings(**embedding_kwargs)
         return self._embedding_models[key]
 
-    def _build_index(self):
+    def _build_index(self, *, reset: bool = False):
         documents = self._load_documents()
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=int(os.getenv("CHUNK_SIZE", "700")),
@@ -300,27 +408,52 @@ class RagBackend:
         for chunk in chunks:
             chunk.metadata["source_file"] = Path(self.document_path).name
             chunk.metadata["page_number"] = int(chunk.metadata.get("page", 0)) + 1
-        embeddings = self._get_embeddings()
+
+        client = self._client()
+        if reset:
+            # Force means "rebuild from scratch" — drop the existing vectors so
+            # changed CHUNK_SIZE / chunk text actually take effect.
+            try:
+                client.delete_collection(name=self.collection_name)
+            except Exception:
+                pass  # nothing there yet, which is exactly what we wanted
         store = Chroma(
             collection_name=self.collection_name,
-            embedding_function=embeddings,
+            embedding_function=self._get_embeddings(),
             persist_directory=self.chroma_dir,
+            client=client,
         )
-        existing_ids = set(store.get().get("ids", []))
-        new_chunks = []
-        new_ids = []
-        for chunk in chunks:
-            stable_id = hashlib.sha256(
-                f"{chunk.metadata['source_file']}|{chunk.metadata['page_number']}|{chunk.metadata.get('start_index', 0)}|{chunk.page_content}".encode()
+
+        # Stable per-chunk ids make re-opening the same PDF a no-op instead of
+        # a full re-embed.
+        new_ids = [
+            hashlib.sha256(
+                f"{chunk.metadata['source_file']}|{chunk.metadata['page_number']}"
+                f"|{chunk.metadata.get('start_index', 0)}|{chunk.page_content}".encode()
             ).hexdigest()
-            if stable_id not in existing_ids:
-                new_chunks.append(chunk)
-                new_ids.append(stable_id)
-        if new_chunks:
+            for chunk in chunks
+        ]
+        # Ask only about the ids we are about to insert, in batches. A bare
+        # store.get() pulls the whole collection — every document *and* its
+        # embedding vector — into memory, which defeats the point of skipping
+        # work and is how a large PDF used to blow up the heap.
+        existing: set[str] = set()
+        for start in range(0, len(new_ids), 500):
+            found = store.get(ids=new_ids[start : start + 500], include=[]).get("ids", [])
+            existing.update(found)
+
+        missing = [
+            (chunk_id, chunk)
+            for chunk_id, chunk in zip(new_ids, chunks, strict=True)
+            if chunk_id not in existing
+        ]
+        if missing:
+            logger.info("Embedding %s new chunk(s) for %s", len(missing), self.document_path)
             # Batched so a very large PDF can't spike memory with one giant
             # embedding + insert call.
-            for start in range(0, len(new_chunks), 100):
-                store.add_documents(new_chunks[start : start + 100], ids=new_ids[start : start + 100])
+            for start in range(0, len(missing), 100):
+                batch = missing[start : start + 100]
+                store.add_documents([chunk for _, chunk in batch], ids=[cid for cid, _ in batch])
         return documents, store
 
     # ----------------------------------------------------------- retrieval
@@ -329,6 +462,8 @@ class RagBackend:
         """Single retrieval pass — the returned context text, source labels,
         and raw docs are reused everywhere (generation, the agent's tool
         call, and the sources shown in the UI) instead of re-querying."""
+        if self.vector_store is None:
+            return "No document is loaded yet.", [], []
         docs = self.vector_store.max_marginal_relevance_search(
             question, k=k or self.retrieval_k, fetch_k=fetch_k or self.retrieval_fetch_k
         )
@@ -569,6 +704,21 @@ class RagBackend:
             )
         return str(content)
 
+    async def _repaired_answer(self, model, context_package: str, answer: str) -> str:
+        """Rewrite an ungrounded draft, never making it worse.
+
+        The repair call goes through the same model that already produced a
+        usable answer, so it can come back empty (refusal, truncation, a
+        reasoning model spending its budget). Keeping the original draft in
+        that case is strictly better than replacing it with nothing.
+        """
+        response = await _invoke_with_retry(model, repair_prompt(context_package, answer))
+        repaired = self._answer_text({"messages": [response]})
+        if not repaired.strip():
+            logger.warning("grounding repair returned nothing; keeping the original draft")
+            return answer
+        return repaired
+
     # ----------------------------------------------------------------- ask
 
     async def ask(self, question: str, user_id: str = "default", provider: str = "gemini") -> dict[str, Any]:
@@ -576,6 +726,13 @@ class RagBackend:
         user_id = user_id.strip() or "default"
         if not question:
             return {"answer": "Please enter a question.", "cached": False, "sources": []}
+        if not self.document_ready:
+            return {
+                "answer": "I don't have a document to answer from yet. "
+                "Upload a PDF on the left and ask again.",
+                "cached": False,
+                "sources": [],
+            }
         self._check_rate_limit(user_id)
         return await self._ask_impl(question, user_id, provider)
 
@@ -631,8 +788,7 @@ class RagBackend:
             # rather than re-running the whole tool-calling agent.
             if max_attempts > 1 and needs_grounding_repair(answer, context_text):
                 model, _ = self._get_model(provider)
-                repair_response = await _invoke_with_retry(model, repair_prompt(context_package, answer))
-                answer = self._answer_text({"messages": [repair_response]})
+                answer = await self._repaired_answer(model, context_package, answer)
         else:
             model, _ = self._get_model(provider)
             answer = ""
@@ -641,8 +797,14 @@ class RagBackend:
                 answer = self._answer_text({"messages": [response]})
                 if not needs_grounding_repair(answer, context_text) or attempt == max_attempts:
                     break
-                response = await _invoke_with_retry(model, repair_prompt(context_package, answer))
-                answer = self._answer_text({"messages": [response]})
+                answer = await self._repaired_answer(model, context_package, answer)
+
+        if not answer.strip():
+            # Some servers answer in a `reasoning` field and leave content
+            # null when a thinking model exhausts its budget. Saying so beats
+            # showing an answer-less turn.
+            logger.warning("%s returned an empty answer for %r", provider, question[:80])
+            answer = EMPTY_ANSWER_NOTICE
 
         result = {
             "answer": answer,
@@ -674,6 +836,13 @@ class RagBackend:
         provider = provider.lower()
         if not question:
             yield "Please enter a question.", []
+            return
+        if not self.document_ready:
+            yield (
+                "I don't have a document to answer from yet. "
+                "Upload a PDF on the left and ask again.",
+                [],
+            )
             return
         self._check_rate_limit(user_id)
         if provider not in {"gemini", "ollama", "llamacpp", "mlx"}:
@@ -711,11 +880,16 @@ class RagBackend:
             piece = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
             answer += piece
             yield answer, sources
-
         if needs_grounding_repair(answer, context_text):
-            response = await _invoke_with_retry(model, repair_prompt(context_package, answer))
-            answer = self._answer_text({"messages": [response]})
+            answer = await self._repaired_answer(model, context_package, answer)
             yield answer, sources
+
+        if not answer.strip():
+            # Some servers answer in a `reasoning` field and leave content
+            # null when a thinking model exhausts its budget. Saying so beats
+            # showing an answer-less turn.
+            logger.warning("%s returned an empty answer for %r", provider, question[:80])
+            answer = EMPTY_ANSWER_NOTICE
 
         result = {
             "answer": answer,
@@ -727,13 +901,27 @@ class RagBackend:
         self.memory.auto_capture(user_id, question)
         self.memory.add_turn(user_id, question, answer)
         self.cache.put(key, result)
+        # Yield the finished answer. Without this the generator just ended
+        # after the stream, so anything computed after it — a grounding-repair
+        # rewrite, or the empty-answer notice — never reached the UI, which
+        # kept showing the last (possibly empty) streamed chunk instead.
+        yield result["answer"], result["sources"]
 
     # ------------------------------------------------------------- controls
 
     def load_document(self, document_path: str) -> str:
-        self.document_path = document_path
-        self._agents.clear()  # tools/checkpointer tied to the prior document
-        self._refresh_index()
+        # Keep the previous document on failure so one bad upload can't
+        # leave the app pointing at a file that can't be read.
+        previous_path = self.document_path
+        try:
+            self.document_path = document_path
+            self._agents.clear()  # tools/checkpointer tied to the prior document
+            self._refresh_index(strict=True)
+        except Exception:
+            self.document_path = previous_path
+            self.document_version = self._document_fingerprint()
+            self._refresh_index()
+            raise
         self.cache.clear()
         page_count = len(self.documents)
         plural = "" if page_count == 1 else "s"
@@ -741,7 +929,7 @@ class RagBackend:
 
     def rebuild_index(self) -> str:
         self._agents.clear()
-        self._refresh_index(force_nonce=str(time.time_ns()))
+        self._refresh_index(force=True, strict=True)
         self.cache.clear()
         return f"Rebuilt the index for {Path(self.document_path).name}."
 
@@ -758,9 +946,17 @@ class RagBackend:
             raise RuntimeError("Online embeddings need GEMINI_API_KEY set.")
         if provider == self.embedding_provider:
             return f"Already using {provider} embeddings."
+        previous = self.embedding_provider
         self.embedding_provider = provider
-        self._agents.clear()
-        self._refresh_index(force_nonce=str(time.time_ns()))
+        try:
+            self._agents.clear()
+            # The embedding key is part of the fingerprint, so this lands on a
+            # different collection — a genuine rebuild into the new vector space.
+            self._refresh_index(strict=True)
+        except Exception:
+            self.embedding_provider = previous
+            self._refresh_index()
+            raise
         self.cache.clear()
         label = self.embedding_model_online if provider == "online" else self.embedding_model_name
         return f"Switched to {provider} embeddings ({label}) and rebuilt the index."
@@ -868,7 +1064,9 @@ class RagBackend:
             f"{len(tools)} tool(s) from {', '.join(self.composio_toolkits)}" if tools else "off"
         )
         return {
-            "document": Path(self.document_path).name,
+            "document": Path(self.document_path).name if self.document_path else "(none)",
+            "document_ready": self.document_ready,
+            "document_error": self.document_error,
             "pages": len(self.documents),
             "embedding_model": embedding_label,
             "mcp_tools": mcp_label,

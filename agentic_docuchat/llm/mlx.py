@@ -5,7 +5,9 @@ server that ships with mlx-lm, handy on Apple Silicon), e.g. started with:
 
     mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081
 
-which serves at http://localhost:8081/v1.
+which serves at http://localhost:8081/v1. `models_on_disk` reports MLX
+repos in the Hugging Face cache that are ready to load even while the server
+is stopped.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from .discovery import mlx_models_on_disk
+
 
 def mlx_status(base_url: str = "http://localhost:8081/v1", timeout: float = 2.0) -> dict[str, Any]:
     """Ping the MLX server's /v1/models endpoint.
@@ -23,7 +27,11 @@ def mlx_status(base_url: str = "http://localhost:8081/v1", timeout: float = 2.0)
     so the rest of the app (status panel, error messages) can treat every
     local provider the same way.
     """
-    status: dict[str, Any] = {"running": False, "models": []}
+    status: dict[str, Any] = {
+        "running": False,
+        "models": [],
+        "models_on_disk": mlx_models_on_disk(),
+    }
     url = f"{base_url.rstrip('/')}/models"
     try:
         request = Request(url, method="GET")

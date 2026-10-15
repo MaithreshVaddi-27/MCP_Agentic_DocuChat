@@ -1,275 +1,310 @@
-# MCP_Agentic_DocuChat — Chat With Your PDFs, Privately and With Receipts
+# MCP_Agentic_DocuChat
 
-![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
-![Gradio 6](https://img.shields.io/badge/gradio-6-orange)
-![LangChain](https://img.shields.io/badge/langchain-1.3-green)
-![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+**Upload a PDF. Ask anything. Get answers that point to the exact page they came from.**
 
-**Upload a research paper. Ask anything. Get answers that point to the exact page they came from.**
+A local-first reading companion. Your documents, vectors, chats, and memories stay on
+your disk. Runs fully offline against Ollama, llama.cpp, or MLX — Gemini is optional.
 
-MCP_Agentic_DocuChat is a friendly, local-first reading companion. It reads your PDF,
-remembers what matters to you, and answers using *your document first* — with web
-search only when the paper itself doesn't have the answer. Run it fully offline with
-llama.cpp, Ollama, or MLX on Apple Silicon — or plug in Gemini when you want extra brainpower.
-
-> **New here?** Get a free Gemini key → run the commands below → open the app.
-> About 10 minutes total, most of it downloads.
-
-```
-You + PDF  ──▶  MCP_Agentic_DocuChat reads & indexes  ──▶  you ask  ──▶  grounded answer + page numbers
-                        │                                                  │
-               Chroma (local vectors)                           memory + cache (local SQLite)
+```text
+   PDF  ──▶  chunk + embed (local)  ──▶  Chroma  ──▶  question  ──▶  answer + page citations
+                                                    │                    ▲
+                                        SQLite: memory + answer cache ─┘
 ```
 
 ## Contents
 
-- [Features](#features)
-- [How it works](#how-it-works)
 - [Quickstart](#quickstart)
-- [API keys](#api-keys)
-- [Configuration](#configuration)
 - [Local models](#local-models)
-- [Usage](#usage)
+- [How it works](#how-it-works)
+- [Configuration](#configuration)
+- [Using the app](#using-the-app)
+- [Project layout](#project-layout)
 - [Evaluation](#evaluation)
-- [Project structure](#project-structure)
 - [Testing](#testing)
 - [Production use](#production-use)
 - [Troubleshooting](#troubleshooting)
-- [Security & contributing](#security--contributing)
-- [License](#license)
+- [Contributing](#contributing)
 
-## Features
-
-- **Grounded answers with receipts** — every claim cites `file — page N`; a repair pass retries once if the draft looks unsupported.
-- **Local-first** — PDFs, vectors, chats, and memories stay on your disk. Works fully offline with Ollama, llama.cpp, or MLX.
-- **Four providers** — Gemini (tool-calling agent), Ollama, llama.cpp, and MLX (locals stream token-by-token).
-- **Remembers you** — durable facts ("I prefer short answers") plus recent chat, stored in one local SQLite file.
-- **Fast repeats** — a bounded answer cache makes identical questions instant.
-- **Optional web tools** — Composio/Tavily search kicks in only when the PDF has no answer.
-
-## How it works
-
-1. **Upload a PDF.** Split into overlapping chunks, embedded locally, stored in Chroma.
-2. **Ask.** One MMR search pulls the 4 best chunks.
-3. **Answer with receipts** — the same search feeds the model and the Sources box, so they never disagree.
-4. **Memory + cache** in one local SQLite file. Repeats are instant.
-5. **Web search (optional)** via Composio/Tavily when the PDF has no answer.
-
-```text
-Question + selected provider
-          ↓
-Local answer cache (same question + same saved memories = instant reply)
-          ↓
-Evidence pack: your question + memories + recent chat + PDF passages
-          ↓
-One search pulls the 4 best chunks — used for the answer AND the Sources box
-          ↓
-Gemini agent (with web tools) or direct local answer, then one repair pass
-          ↓
-Answer + sources shown, memory updated
-```
-
-The Chroma collection name includes a fingerprint of the active document and
-embedding model, so vectors from different PDFs never mix — and reopening the
-app with the same PDF skips re-embedding entirely.
+---
 
 ## Quickstart
 
-**You need:** Python 3.10+, Git, ~3 GB free disk (dependencies + one-time ~1.3 GB embedding download),
-enough RAM for your chosen model, and a Gemini API key ([get one free](https://aistudio.google.com/apikey)).
+**Requires** Python 3.10+, ~4 GB free disk, and a local model runtime (or a free
+[Gemini key](https://aistudio.google.com/apikey)).
 
 ```bash
 git clone https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat.git
 cd MCP_Agentic_DocuChat
+
 python3 -m venv avenv
-source avenv/bin/activate   # Windows: .\avenv\Scripts\Activate.ps1
+source avenv/bin/activate            # Windows: .\avenv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt   # first embedding download ~1.3 GB
-cp .env.example .env        # Windows: copy .env.example .env
-# paste your GEMINI_API_KEY into .env, then:
-python -m unittest discover -s tests -p 'test_*.py'   # expect OK — 35 tests (22 skip gracefully without the full stack)
+python -m pip install -r requirements.txt
+
+cp .env.example .env                 # optional — defaults run fine
 python gradio_app.py
 ```
 
-Open `http://127.0.0.1:7860` → **Upload a PDF** → **Process document** → ask *"What are the main findings?"*.
+Open <http://127.0.0.1:7860>, drop in a PDF, press **Process document**, and ask
+*"What are the main findings?"*.
+
+The first run downloads the embedding model once (~1.3 GB, a few minutes). After
+that, restarts are fast and re-opening the same PDF skips re-embedding entirely.
 
 <details>
-<summary>OS-specific notes (click to expand)</summary>
+<summary>Platform notes</summary>
 
-- **Windows (PowerShell):** install [Python 3.10+](https://www.python.org/downloads/) (tick **Add python.exe to PATH**) and [Git](https://git-scm.com/download/win). If activation is blocked, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`. Edit `.env` with `notepad .env`.
-- **macOS:** `xcode-select --install`, then `brew install python@3.11 git`. For local models, install Ollama from [ollama.com/download](https://ollama.com/download), then `ollama pull gemma3:4b`.
-- **Linux (Ubuntu/Debian):** `sudo apt update && sudo apt install -y python3.11 python3.11-venv python3-pip git`. NVIDIA GPU users: afterwards install CUDA torch per [pytorch.org](https://pytorch.org/get-started/locally/).
+- **macOS** — `xcode-select --install`, then `brew install python@3.11 git`.
+  For local models: `brew install ollama llama.cpp` and `pipx install mlx-lm`.
+- **Linux** — `sudo apt update && sudo apt install -y python3.11 python3.11-venv git`.
+  NVIDIA users: install CUDA torch per [pytorch.org](https://pytorch.org/get-started/locally/).
+- **Windows** — install [Python 3.10+](https://www.python.org/downloads/) with
+  **Add python.exe to PATH**. If activation is blocked:
+  `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
 
 </details>
 
-## API keys
-
-| Key | Needed for | Where to get it |
-|-----|-----------|-----------------|
-| **GEMINI_API_KEY** (recommended) | Gemini answers, online embeddings, eval judge | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → Create API key → paste the `AIza...` value into `.env`. Free tier included. |
-| **HF_TOKEN** (rarely) | HuggingFace embedding downloads if rate-limited | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → Create new token (Read) → paste `hf_...` into `.env`. |
-| **COMPOSIO_API_KEY + COMPOSIO_USER_ID** (optional) | Web search / Gmail / Calendar tools | Sign up at [composio.dev](https://composio.dev) → API keys → copy. Connect the **Tavily** toolkit (key from [tavily.com](https://tavily.com), free tier). |
-
-Never commit `.env`. If a key leaks, revoke it where you created it.
-
-## Configuration
-
-Copy the template and restart the app after any change:
-
-```bash
-cp .env.example .env   # Windows: copy .env.example .env
-```
-
-| Variable | Default | What it does |
-|----------|---------|--------------|
-| `GEMINI_API_KEY` | — | Enables Gemini answers, online embeddings, eval judge |
-| `EMBEDDING_PROVIDER` | `local` | `local` = private HuggingFace model on your machine; `online` = Google API, needs `GEMINI_API_KEY` |
-| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Chat model for the Gemini provider |
-| `OLLAMA_MODEL` / `OLLAMA_BASE_URL` | `gemma3:4b` / `http://localhost:11434` | Ollama model and server address |
-| `LLAMACPP_MODEL` / `LLAMACPP_BASE_URL` | `Qwen3-4B-GGUF:Q4_0` / `http://localhost:8080/v1` | llama-server model id and address |
-| `DOCUMENT_PATH` | `./data/research_paper.pdf` | PDF loaded at startup |
-| `MAX_PDF_MB` | `50` | Uploads larger than this are refused politely |
-| `RETRIEVAL_K` / `RETRIEVAL_FETCH_K` | `4` / `12` | MMR search depth (answer chunks / candidate pool) |
-| `RATE_LIMIT_SECONDS` | `1.5` | Per-user cooldown against double-clicks |
-| `GRADIO_SHARE` | `false` | `true` = temporary public URL (refuses to start without login below) |
-| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (login off) | Set both to require login — locally and when sharing |
-
-<details>
-<summary>Advanced tuning (click to expand — defaults are fine to start)</summary>
-
-| Variable | Default | What it does |
-|----------|---------|--------------|
-| `EMBEDDING_MODEL` / `EMBEDDING_MODEL_ONLINE` | `BAAI/bge-large-en-v1.5` / `models/text-embedding-004` | Local / Google embedding models |
-| `HF_TOKEN` | — | Only if HuggingFace rate-limits your embedding download |
-| `COMPOSIO_TOOLKITS` | `TAVILY` | Comma-separated toolkits for the Gemini agent |
-| `CHUNK_SIZE` / `CHUNK_OVERLAP` | `700` / `100` | Splitter settings (rebuild index after changing) |
-| `CACHE_TTL_SECONDS` / `CACHE_MAX_ENTRIES` | `604800` / `2000` | Answer-cache lifetime and size cap |
-| `ANSWER_LOOP_MAX_ATTEMPTS` | `2` | `1` = answer once, `2` = one grounding-repair retry |
-| `OLLAMA_KEEP_ALIVE` / `OLLAMA_NUM_CTX` | `10m` / `4096` | Ollama model keep-alive and context window |
-| `LLAMACPP_API_KEY` / `LLAMACPP_NUM_CTX` | `not-needed` / `4096` | llama-server credentials label and context window |
-| `MLX_MODEL` / `MLX_BASE_URL` | `mlx-community/gemma-3-4b-it-4bit` / `http://localhost:8081/v1` | MLX server model id and address |
-| `MLX_API_KEY` / `MLX_NUM_CTX` | `not-needed` / `4096` | MLX credentials label and context window |
-| `OLLAMA_STATUS_CACHE_SECONDS` / `LLAMACPP_STATUS_CACHE_SECONDS` / `MLX_STATUS_CACHE_SECONDS` | `15` / `15` / `15` | How long health probes are trusted |
-| `MEMORY_DATABASE` / `CHROMA_DIR` / `CHROMA_COLLECTION` | `./agentic_rag_memory.sqlite3` / `./chroma_langchain_db` / `agentic_rag_research_collection` | Where chats, vectors live (back these up) |
-| `LOG_LEVEL` | `INFO` | `DEBUG` for troubleshooting, `WARNING` for quiet |
-| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (login off) | Set both to require login everywhere; sharing refuses to start without them |
-
-</details>
-
-The full commented list lives in [`.env.example`](.env.example) — every `os.getenv` in the code has a matching entry there.
+---
 
 ## Local models
 
-| Option | Install | Start | Already configured |
-|--------|---------|-------|--------------------|
-| Ollama (easiest) | [ollama.com/download](https://ollama.com/download) · Linux: `curl -fsSL https://ollama.com/install.sh \| sh` | `ollama pull gemma3:4b` + `ollama serve` | `OLLAMA_BASE_URL=http://localhost:11434` |
-| llama.cpp (fastest) | `llama-server` from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) | `llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080` (GPU: add `-ngl 99 -c 4096`) | `LLAMACPP_BASE_URL=http://localhost:8080/v1` · check `curl http://localhost:8080/v1/models` |
-| MLX (Apple Silicon) | `pipx install mlx-lm` | `mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081` | `MLX_BASE_URL=http://localhost:8081/v1` · check `curl http://localhost:8081/v1/models` |
+MCP_Agentic_DocuChat talks to three OpenAI-compatible local runtimes. Start the one
+you want; the app finds it, lists the models it serves, and lets you switch between
+them in the UI.
 
-Green dot = ready. Red dot = the exact command to run is in [Troubleshooting](#troubleshooting).
+| Runtime | Install | Start | Default URL |
+|---------|---------|-------|-------------|
+| **Ollama** | [ollama.com/download](https://ollama.com/download) | `ollama serve` | `http://localhost:11434` |
+| **llama.cpp** | `brew install llama.cpp`, or [releases](https://github.com/ggml-org/llama.cpp/releases) | `llama-server -hf <repo> --port 8080` | `http://localhost:8080/v1` |
+| **MLX** (Apple Silicon) | `pipx install mlx-lm` | `mlx_lm.server --model <repo> --port 8081` | `http://localhost:8081/v1` |
+| **Gemini** (optional) | — | API key in `.env` | managed |
 
-Not sure what's installed? This prints your live Ollama/llama.cpp/MLX models plus the `.env` lines to select them:
+### Finding what you already have
 
 ```bash
 python -m agentic_docuchat.llm.models
 ```
 
-## Usage
+This is the fastest way to answer *"which model should I point this at?"*. It probes
+each runtime **and** scans disk, so it still tells you what you have when nothing is
+running yet:
 
-- **Ask** about the PDF; local-model answers stream token-by-token.
-- **Provider + Local model** — pick Ollama, llama.cpp, or MLX, then choose any model actually installed on your machine (the list refreshes itself; `Refresh status` re-probes). Picks apply instantly and are validated — a typo gets a helpful error, not a server traceback.
-- **Sources** under each answer list the `file — page N` chunks used.
-- **Embeddings radio** switches local/online and rebuilds automatically.
-- **Rebuild index** forces re-embedding (e.g. after changing chunk settings).
-- **Clear my chat & memory** wipes your turns + saved facts for your User ID.
-- **Export chat** downloads a Markdown transcript; **Copy last answer** has a clipboard fallback for non-HTTP pages.
+```text
+ollama (http://localhost:11434): offline — 2 model(s) already on disk: gemma3:1b, qwen3:1.7b
+llamacpp (http://localhost:8080/v1): offline — 3 model(s) already on disk: ggml-org/SmolLM3-3B-GGUF, ...
+mlx (http://localhost:8081/v1): offline — 7 model(s) already on disk: mlx-community/gemma-3-4b-it-4bit, ...
 
-To wipe all local memory: stop the app and delete `agentic_rag_memory.sqlite3` (chats, facts, cache, and feedback go; vectors stay).
+No provider is serving right now. Start one:
+  ollama    -> ollama serve
+  llamacpp  -> llama-server -hf ggml-org/SmolLM3-3B-GGUF --port 8080
+  mlx       -> mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081
+```
+
+Discovery asks each runtime to inventory itself, so it reports exactly what that
+runtime can actually load:
+
+| Runtime | Command used |
+|---------|--------------|
+| Ollama | `ollama list` |
+| llama.cpp | `llama-server --cache-list` |
+| MLX | `mlx_lm.manage --scan` |
+
+The last two work with nothing running, so the list is still useful on a stopped
+machine. When a command is missing (or Ollama's daemon is down) discovery falls back
+to reading the known cache layout — the Hugging Face hub plus any extra directories in
+`LLAMACPP_MODEL_DIRS`. Repos whose weights never finished downloading are filtered
+out, so nothing listed here will 404 on load. The same information appears in the app's
+status panel.
+
+---
+
+## How it works
+
+1. **Upload a PDF.** Pages are split into overlapping chunks, embedded locally, and
+   stored in Chroma. Uploads are validated by extension, `%PDF-` header, and size cap.
+2. **Ask.** One MMR search pulls the best `RETRIEVAL_K` chunks. That single search
+   feeds both the model and the Sources box, so they can never disagree.
+3. **Answer with receipts.** The model answers from an explicitly labelled evidence
+   pack. Retrieved text is treated as evidence, never as instructions — a PDF
+   containing *"ignore your rules"* does not get to give them.
+4. **Grounding repair.** If a draft cites no page and does not admit a gap, it gets
+   one rewrite pass before being shown.
+5. **Memory and cache** live in one local SQLite file. Durable facts are captured
+   automatically ("I prefer short answers"); repeat questions are instant.
+
+Each document gets its own Chroma collection, keyed on a fingerprint of the file and
+the active embedding model — so vectors from different documents or embedding spaces
+never mix, re-opening the same PDF is free, and superseded collections are swept
+automatically rather than accumulating.
+
+---
+
+## Configuration
+
+Every setting lives in `.env` (copy from `.env.example`); restart the app after
+changing one. Documents are *not* configured here — PDFs are uploaded through the UI.
+
+### Frequently changed
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OLLAMA_MODEL` / `OLLAMA_BASE_URL` | `gemma3:4b` / `http://localhost:11434` | Ollama runtime |
+| `LLAMACPP_MODEL` / `LLAMACPP_BASE_URL` | `Qwen3-4B-GGUF:Q4_0` / `http://localhost:8080/v1` | llama.cpp runtime |
+| `MLX_MODEL` / `MLX_BASE_URL` | `mlx-community/gemma-3-4b-it-4bit` / `http://localhost:8081/v1` | MLX runtime |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-3.5-flash-lite` | Gemini provider |
+| `EMBEDDING_PROVIDER` | `local` | `local` = private HuggingFace model; `online` = Google API (needs `GEMINI_API_KEY`) |
+| `RETRIEVAL_K` / `RETRIEVAL_FETCH_K` | `4` / `12` | MMR search depth (chunks sent / candidate pool) |
+| `MAX_PDF_MB` | `50` | Upload size cap |
+| `GRADIO_USERNAME` / `GRADIO_PASSWORD` | placeholders (login off) | Require login everywhere |
+| `GRADIO_SHARE` | `false` | `true` = temporary public URL (refuses to start without login) |
+
+### Everything else
+
+`requirements.txt` aside, the full commented list — 44 variables covering provider
+timeouts, chunking, cache bounds, storage paths, rate limiting, and logging — lives in
+[`.env.example`](.env.example). Every `os.getenv` in the code has a matching entry
+there; CI and the audit check below keep it that way.
+
+```bash
+# verify no undocumented env var crept in
+diff <(grep -rhoE 'os\.getenv\("[A-Z0-9_]+"' agentic_docuchat eval | sed 's/os.getenv("//;s/"//' | sort -u) \
+     <(grep -oE '^[A-Z0-9_]+=' .env.example | sed 's/=//' | sort -u)
+```
+
+---
+
+## Using the app
+
+| Control | What it does |
+|---------|--------------|
+| **Provider** | Gemini, llama.cpp, Ollama, or MLX. |
+| **Local model** | Lists what the chosen runtime actually serves. Switching applies instantly and is validated — a typo gets a helpful error, not a stack trace. |
+| **Embeddings** | Switch local/online; the index rebuilds automatically because vectors from different models are not comparable. |
+| **Sources** | Lists the `file — page N` chunks behind each answer. |
+| **Upload a PDF** / **Rebuild index** | Load a document, or force re-embedding after changing chunk settings. |
+| **Clear my chat & memory** | Wipes your turns and saved facts for the current User ID. |
+| **Export chat** / **Copy last answer** | Download a transcript, or copy to clipboard. |
+
+Status dots are honest: a green dot next to a model the runtime doesn't actually serve
+is flagged before you hit a 404.
+
+To wipe everything local: stop the app and delete `agentic_rag_memory.sqlite3` (chats,
+facts, cache, feedback) and `chroma_langchain_db/` (vectors).
+
+---
+
+## Project layout
+
+```text
+MCP_Agentic_DocuChat/
+├── gradio_app.py                 # launcher — python gradio_app.py
+├── agentic_docuchat/
+│   ├── app.py                    # Gradio UI (composition root)
+│   ├── rag/
+│   │   ├── backend.py            # indexing, providers, retrieval, agent (single source of truth)
+│   │   ├── memory.py             # local SQLite: chats, facts, answer cache
+│   │   └── prompts.py            # evidence packs + grounding repair
+│   ├── llm/
+│   │   ├── discovery.py          # on-disk model discovery for Ollama / llama.cpp / MLX
+│   │   ├── ollama.py             # per-provider health probes (+ what is on disk)
+│   │   ├── llamacpp.py
+│   │   ├── mlx.py
+│   │   └── models.py             # python -m agentic_docuchat.llm.models
+│   └── mcp/
+│       └── tools.py              # Composio loader (fail-closed, lazy)
+├── eval/evaluate.py              # DeepEval quality suite
+├── tests/                        # 101 unit tests
+└── pyproject.toml · requirements.txt · .env.example
+```
+
+Runtime artifacts are git-ignored: `.env`, `data/uploads/`, `chroma_langchain_db/`,
+`*.sqlite3`, `__pycache__/`.
+
+---
 
 ## Evaluation
 
 ```bash
-python eval/evaluate.py --document ./data/research_paper.pdf --provider llamacpp
-# providers: llamacpp | ollama | gemini
+python eval/evaluate.py --document ./data/uploads/your.pdf --provider llamacpp
+# providers: llamacpp | ollama | mlx | gemini
 ```
 
-Scores 0–1 on **faithfulness** (claims backed by the PDF?), **answer relevancy**,
-and **context precision** (right pages pulled?). With `GEMINI_API_KEY` it uses the
-DeepEval LLM judge; without keys it runs offline citation checks so CI stays green.
-Aim for faithfulness **0.80+**. Full audit history: [`AUDIT_REPORT.md`](AUDIT_REPORT.md).
+Scores 0–1 on **faithfulness** (claims backed by the document), **answer relevancy**,
+and **context precision** (right pages pulled), across four fixed questions — one of
+which no document can answer, to check the model says so honestly. With
+`GEMINI_API_KEY` set, DeepEval's LLM judge does the scoring; without keys it falls back
+to offline citation checks so CI stays green anywhere. Aim for faithfulness **0.80+**.
 
-## Project structure
-
-```text
-MCP_Agentic_DocuChat/
-├── gradio_app.py              # Run this (tiny launcher)
-├── agentic_docuchat/          # The app itself
-│   ├── app.py                 # Gradio UI (composition root)
-│   ├── rag/                   # Retrieval-augmented generation
-│   │   ├── backend.py         # Indexing, providers, memory, cache (single source of truth)
-│   │   ├── memory.py          # Local SQLite (chats, facts, cache)
-│   │   └── prompts.py         # Evidence packs + repair loop
-│   ├── llm/                   # Chat-model providers
-│   │   ├── ollama.py / llamacpp.py / mlx.py   # Local-server health checks
-│   │   └── models.py          # `python -m agentic_docuchat.llm.models` — lists installed local models
-│   └── mcp/                   # MCP tool integrations
-│       └── tools.py           # Composio loader (fail-closed, lazy)
-├── eval/evaluate.py           # DeepEval quality suite
-├── tests/                     # 35 unit tests, all passing
-├── pyproject.toml / requirements.txt / .env.example
-└── data/  (PDFs go in data/uploads/)
-```
-
-Ignored at runtime: `.env`, `data/uploads/`, `chroma_langchain_db/`, `*.sqlite3`, `__pycache__/`.
+---
 
 ## Testing
 
 ```bash
-python -m unittest discover -s tests -p 'test_*.py'   # Windows: "test_*.py"
-python -m compileall -q gradio_app.py agentic_docuchat eval
+python -m ruff check .                              # lint gate (pyproject-configured)
+python -m compileall -q gradio_app.py agentic_docuchat eval tests
+python -m unittest discover -s tests -p 'test_*.py'  # 101 tests
 ```
 
-End-to-end needs a PDF + one working provider (Gemini key or local server).
+The suite is self-contained: it builds throwaway Ollama/Hugging Face layouts in temp
+directories, so nothing depends on which models happen to be installed on the machine
+running it. Tests that need the full LangChain stack skip themselves cleanly in a light
+environment. End-to-end runs need a PDF and one working provider.
+
+CI runs this on Python 3.10–3.12, plus a boot smoke test that asserts the app starts
+with no document (a fresh clone has none) and a wheel build/install check.
+
+---
 
 ## Production use
 
-Running this beyond your own laptop? The checklist is short:
+Beyond your own laptop:
 
-- **Lock sharing down.** `GRADIO_SHARE=false` (default). Set `GRADIO_USERNAME`/`GRADIO_PASSWORD`
-  and the login gate applies everywhere, local or shared; public sharing without
-  credentials is refused at startup. Never expose the UI to
-  an untrusted network without login; the rate limit stops double-clicks, not attackers.
-  Prefer an SSH tunnel or an authenticated reverse proxy over a public port.
-- **Know what's yours to back up.** `agentic_rag_memory.sqlite3` (chats, facts, cache),
+- **Lock the UI down.** `GRADIO_SHARE=false` by default. Set `GRADIO_USERNAME` /
+  `GRADIO_PASSWORD` and login applies everywhere; public sharing without credentials is
+  refused at startup. Never expose an unauthenticated Gradio port to an untrusted
+  network — prefer an SSH tunnel or an authenticated reverse proxy. The per-user rate
+  limit stops double-clicks, not attackers.
+- **Know what to back up.** `agentic_rag_memory.sqlite3` (chats, facts, cache),
   `data/uploads/` (your PDFs), `chroma_langchain_db/` (vectors). Everything else rebuilds.
-- **Pin and verify before upgrading.** Dependencies are pinned in `requirements.txt`
-  (`langchain-openai` must stay on 1.x); after any bump run the [Testing](#testing)
-  commands and one manual PDF question before deploying.
-- **Watch the first run.** The embedding model downloads once (~1.3 GB); after that,
-  restarts are fast and reopening the same PDF skips re-embedding entirely.
+- **Pin and verify before upgrading.** Dependencies are pinned in `requirements.txt`.
+  `langchain-openai` must stay on 1.x — 0.3.x caps `langchain-core<1.0` and conflicts
+  with the LangChain 1.x family. After any bump, run the [Testing](#testing) commands
+  and ask one real question against a real PDF.
+- **Watch the first run.** The embedding model downloads once (~1.3 GB). The UI narrates
+  each stage so a slow first upload is visibly progress rather than a hang.
+
+---
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| `pip install` dependency conflict | Use the pinned `requirements.txt` as-is — `langchain-openai` must stay on 1.x (the 0.3.x series conflicts with LangChain 1.x). Don't mix in newer majors by hand. |
-| `GEMINI_API_KEY is missing` | Paste key from [AI Studio](https://aistudio.google.com/apikey) into `.env`, restart app |
-| llama.cpp 🔴 offline | `llama-server -hf Qwen/Qwen3-4B-GGUF:Q4_0 --port 8080` · verify `curl http://localhost:8080/v1/models` |
-| MLX 🔴 offline | `mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081` · verify `curl http://localhost:8081/v1/models` |
-| Ollama 🔴 offline | `ollama serve` · then `ollama pull gemma3:4b` · verify `ollama list` |
-| `That file doesn't look like a real PDF` | File isn't a PDF (renamed .txt/.html). Upload the original PDF |
-| `PDF is 80 MB — limit is 50` | Split the PDF or raise `MAX_PDF_MB` in `.env` |
-| `database is locked` | Rare now (WAL enabled). Stop other app instances, restart |
-| Slow first answer | Normal — embedding model downloads once (~1.3 GB), then cached |
-| Stuck on "Processing document…" | Almost always the first-run model download above — the status lines now narrate each stage, so give it a few minutes and watch the terminal |
-| Setup warning won't go away | It clears itself once a document loads — if it stays, the upload actually failed; read the message under "Process document" |
-| `ModuleNotFoundError` | You forgot activation or the install failed: activate (`.\avenv\Scripts\Activate.ps1` / `source avenv/bin/activate`), reinstall requirements |
+| 🔴 Ollama offline | `ollama serve`, then `ollama pull gemma3:4b`. `python -m agentic_docuchat.llm.models` shows what you already have. |
+| 🔴 llama.cpp offline | `llama-server -hf ggml-org/SmolLM3-3B-GGUF --port 8080`. Verify with `curl http://localhost:8080/v1/models`. |
+| 🔴 MLX offline | `mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081`. Verify with `curl http://localhost:8081/v1/models`. |
+| `not installed — pick one below` | The configured model isn't on that server. Pick a real one from the **Local model** dropdown. |
+| `No document loaded` | Expected on a fresh clone. Upload a PDF and press **Process document**. |
+| `That file doesn't look like a real PDF` | Renamed `.txt`/`.html`. Upload the original PDF. |
+| `PDF is 80 MB — limit is 50` | Split the file, or raise `MAX_PDF_MB`. |
+| `GEMINI_API_KEY is missing` | Add a key from [AI Studio](https://aistudio.google.com/apikey) to `.env`. |
+| Answer box shows `…` and never finishes | The provider is streaming empty chunks. Check the provider log; a reasoning/thinking model that exhausts its token budget answers in a non-standard field. Pick a non-thinking model, or raise the server's budget (`--max-tokens` for `mlx_lm.server`). |
+| "The model returned an empty answer" | Same cause, reported instead of hanging. Raise the server's token budget or choose a model without a thinking mode. |
+| `database is locked` | Rare (WAL is on). Close other instances and restart. |
+| Slow first answer | Normal — the embedding model is downloading once (~1.3 GB), then cached. |
+| `pip install` conflict | Use `requirements.txt` as pinned; see [Production use](#production-use). |
+| `ModuleNotFoundError` | You forgot to activate the venv, or the install failed. Re-activate and reinstall. |
 
-## Security & contributing
+---
 
-- **Security:** never commit `.env`; keep `GRADIO_SHARE=false` for private docs and set a login via `GRADIO_USERNAME`/`GRADIO_PASSWORD` whenever the UI leaves your machine; PDFs, chats, and memories stay on your disk (online embeddings/Gemini send text to Google). Full policy: [`SECURITY.md`](SECURITY.md). The rate limit stops double-clicks, not attackers — don't expose the UI unauthenticated.
-- **Contributing:** small, focused PRs; `agentic_docuchat/rag/backend.py` is the single source of truth; behavior changes need tests. Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+## Contributing
+
+Small, focused PRs; behavior changes need a test that fails before and passes after.
+Full guide in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+**Security** — never commit `.env`; keep sharing off for private documents; PDFs, chats,
+and memories stay on your disk unless you enable online embeddings or Gemini. Report
+vulnerabilities privately, not as a public issue: [`SECURITY.md`](SECURITY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Educational and research use.
+MIT — see [`LICENSE`](LICENSE). Educational and research use.

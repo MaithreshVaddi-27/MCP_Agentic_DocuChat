@@ -15,6 +15,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from .discovery import ollama_models_on_disk
 
 
 def _command_exists(command: str) -> bool:
@@ -56,6 +57,7 @@ def ollama_status(base_url: str = "http://localhost:11434") -> dict[str, Any]:
         "installed": _command_exists("ollama"),
         "running": False,
         "models": [],
+        "models_on_disk": ollama_models_on_disk(),
         "gpu": detect_gpu(),
     }
     try:

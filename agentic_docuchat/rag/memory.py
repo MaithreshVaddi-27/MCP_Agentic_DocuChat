@@ -11,6 +11,7 @@ import hashlib
 import json
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,10 +39,21 @@ class PersistentMemory:
             self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._create_tables()
 
-    def _connect(self) -> sqlite3.Connection:
-        # A generous timeout means two quick questions in a row don't trip
-        # over each other ("database is locked"). Each call gets its own
-        # connection, so async handlers stay out of each other's way.
+    @contextmanager
+    def _connect(self):
+        """One connection per operation, always closed.
+
+        sqlite3's own ``with connection:`` only ends the transaction — it
+        never closes the handle. On CPython the connection is reclaimed when
+        the local goes out of scope, but that is refcounting, not a contract,
+        and a long-running server on another runtime would accumulate file
+        descriptors. Closing explicitly also makes commit/rollback
+        unconditional rather than implied by garbage collection.
+
+        The generous timeout means two quick questions in a row don't trip over
+        each other ("database is locked"), and each call gets its own
+        connection so async handlers stay out of each other's way.
+        """
         connection = sqlite3.connect(
             self.database_path, timeout=30.0, check_same_thread=False
         )
@@ -52,7 +64,14 @@ class PersistentMemory:
             connection.execute("PRAGMA synchronous = NORMAL")
         except sqlite3.Error:
             pass  # pragmas are best-effort; core reads/writes still work
-        return connection
+        try:
+            yield connection
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def close(self) -> None:
         """Tidy up so temp folders can be deleted (matters on Windows).

@@ -97,8 +97,16 @@ async def _run_case(backend, case: dict, provider: str, user_id: str = "eval") -
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate MCP_Agentic_DocuChat RAG quality")
-    parser.add_argument("--document", default=os.getenv("DOCUMENT_PATH", "./data/research_paper.pdf"))
-    parser.add_argument("--provider", default="llamacpp", choices=["gemini", "ollama", "llamacpp"])
+    # Documents are uploaded through the UI, so there is no configured
+    # default to fall back on — name the PDF you want scored.
+    parser.add_argument(
+        "--document", required=True, help="Path to the PDF to evaluate against"
+    )
+    parser.add_argument(
+        "--provider",
+        default="llamacpp",
+        choices=["gemini", "ollama", "llamacpp", "mlx"],
+    )
     args = parser.parse_args()
 
     from agentic_docuchat.rag.backend import RagBackend
