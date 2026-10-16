@@ -9,6 +9,11 @@ your own disk. Runs fully offline against Ollama, llama.cpp or MLX; Gemini is op
 
 `Python 3.10+` · `MIT` · `no API key required`
 
+[![CI](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions/workflows/ci.yml/badge.svg)](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![No API key needed](https://img.shields.io/badge/API_key-not_required-brightgreen.svg)](#using-an-api-key)
+
 </div>
 
 ---
@@ -28,14 +33,33 @@ your own disk. Runs fully offline against Ollama, llama.cpp or MLX; Gemini is op
 
 ## Contents
 
+- [What you need](#what-you-need)
 - [Quickstart](#quickstart) · [macOS](#macos) · [Linux](#linux) · [Windows](#windows)
+- [Your first five minutes](#your-first-five-minutes)
 - [Using an API key](#using-an-api-key)
-- [Local models](#local-models)
+- [Local models](#local-models) · [Which provider should I use?](#which-provider-should-i-use) · [Starting a server](#starting-a-server)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
 - [Project layout](#project-layout)
 - [Testing](#testing) · [Evaluation](#evaluation) · [Production use](#production-use)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## What you need
+
+Three things, and you probably have two of them already:
+
+1. **This repo and Python 3.10+.** The setup below walks you through it per OS.
+   Tested on 3.10, 3.11 and 3.12.
+2. **A few GB of free disk.** The local embedding model downloads once
+   (about 1.3 GB, then cached). Each chat model you add is a few GB more.
+3. **One way to run a model — pick either:**
+   - a local runtime ([Ollama](https://ollama.com/download) is the easiest;
+     llama.cpp and MLX also work), **or**
+   - a free Google Gemini key ([five-minute setup](#using-an-api-key)).
+
+That is the whole decision. Everything else has a default that works offline.
 
 ---
 
@@ -215,6 +239,30 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
 
 ---
 
+## Your first five minutes
+
+You have installed it and `python gradio_app.py` is running. Now what?
+
+1. **Open <http://127.0.0.1:7860>.** You will see a setup column on the left
+   and an empty conversation on the right.
+2. **Read the status panel.** On a fresh start it says no document is loaded.
+   That is normal, not an error — the app is waiting for your first PDF.
+3. **Pick how to answer.** Either [start one local server](#starting-a-server)
+   (e.g. `ollama serve` in another terminal) or choose **Gemini** and add a
+   key as described in [Using an API key](#using-an-api-key).
+4. **Upload a PDF and press Process document.** The first run downloads the
+   embedding model (about 1.3 GB), so give it a few minutes. Every later
+   document starts instantly.
+5. **Ask *"What are the main findings?"*.** The answer arrives with a
+   **Sources** list naming the exact pages it came from. If the document does
+   not contain the answer, the model says so instead of guessing.
+
+From here: ask follow-ups (repeat questions are answered from cache), try a
+different provider from the dropdown without restarting, and use
+**Export chat** when you want to keep the transcript.
+
+---
+
 ## Using an API key
 
 You do not need one. Everything above runs on your own hardware.
@@ -269,9 +317,24 @@ text to a third party.
 
 ## Local models
 
-The app talks to three OpenAI-compatible runtimes. Start whichever one you want; it
-finds the runtime, lists what that runtime serves, and lets you switch between them
-without restarting.
+### Which provider should I use?
+
+| Your machine | Easiest path | Why |
+|--------------|--------------|-----|
+| Apple Silicon Mac | MLX or Ollama | MLX is Metal-accelerated; Ollama is one install |
+| Linux with NVIDIA GPU | Ollama | Add the CUDA PyTorch build first (see [Linux](#linux)) |
+| Windows | Ollama via `winget` | No build tools needed |
+| Anything, no installs | Gemini | Free key, nothing runs locally |
+
+You can switch providers per question from the dropdown — no restart needed.
+Not sure what you have installed? Run the probe below; it lists what is
+already on disk and prints the exact start command for it.
+
+### The runtimes
+
+The app talks to three OpenAI-compatible runtimes. Start whichever one you
+want; it finds the runtime, lists what that runtime serves, and lets you
+switch between them without restarting.
 
 | Runtime | Install | Start | Default URL |
 |---------|---------|-------|-------------|
@@ -279,6 +342,77 @@ without restarting.
 | **llama.cpp** | [releases](https://github.com/ggml-org/llama.cpp/releases) | `llama-server -hf <repo> --port 8080` | `http://localhost:8080/v1` |
 | **MLX** (Apple Silicon) | `pipx install mlx-lm` | `mlx_lm.server --model <repo> --port 8081` | `http://localhost:8081/v1` |
 | **Gemini** (optional) | see [above](#using-an-api-key) | managed | managed |
+
+### Starting a server
+
+Each runtime follows the same four steps: install it, get a model, start the
+server, then pick the model in the app's **Local model** dropdown (it lists
+whatever the running server reports — no restart needed). Keep the server's
+terminal open while you chat.
+
+#### Ollama (macOS, Linux, Windows — easiest)
+
+```bash
+ollama serve                                  # start the server (keep this running)
+ollama pull gemma3:4b                         # download a model, first time only
+ollama list                                   # confirm it is there
+```
+
+Check it is answering:
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+Then in the app: Provider → **Ollama**, pick `gemma3:4b` from **Local model**.
+`ollama pull <name>` fetches any other model; `ollama list` always shows what
+you have. The `qwen3:1.7b` model (1.4 GB) is a lighter alternative for small
+machines.
+
+#### llama.cpp (macOS, Linux — good on CPU-only machines)
+
+Install from [releases](https://github.com/ggml-org/llama.cpp/releases)
+(or `brew install llama.cpp` on macOS). See what is already cached — this works
+with no server running:
+
+```bash
+llama-server --cache-list
+```
+
+Start serving a model (downloads from Hugging Face on first use):
+
+```bash
+llama-server -hf second-state/SmolLM2-1.7B-Instruct-GGUF:Q4_K_M --port 8080
+```
+
+Check it is answering:
+
+```bash
+curl http://localhost:8080/v1/models
+```
+
+Then in the app: Provider → **Llama.cpp**, pick the served model from
+**Local model**. The `-hf` value is `<user>/<repo>[:quant]` — any GGUF repo
+works, and cached ones start instantly with no download.
+
+#### MLX (Apple Silicon only)
+
+```bash
+pipx install mlx-lm                            # once
+mlx_lm.manage --scan                           # what is already in the HF cache
+mlx_lm.server --model mlx-community/gemma-3-4b-it-4bit --port 8081
+```
+
+Check it is answering:
+
+```bash
+curl http://localhost:8081/v1/models
+```
+
+Then in the app: Provider → **MLX**, pick the served model from
+**Local model**. Smaller options already verified on this stack:
+`mlx-community/Llama-3.2-1B-Instruct-4bit` and
+`mlx-community/Qwen3.5-2B-MLX-4bit`.
 
 ### Finding what you already have
 
