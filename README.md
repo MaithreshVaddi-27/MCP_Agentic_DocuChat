@@ -133,10 +133,11 @@ curl -fsSL https://ollama.com/install.sh | sh    # then: ollama serve
 <details>
 <summary>Headless servers (no desktop)</summary>
 
-Run it behind an SSH tunnel rather than exposing the port:
+Run it behind an SSH tunnel rather than exposing the port.
+The launcher takes no network flags; it serves locally by default:
 
 ```bash
-python gradio_app.py --server-name 127.0.0.1 --port 7860
+python gradio_app.py
 # from your laptop
 ssh -L 7860:127.0.0.1:7860 user@your-server
 ```
@@ -292,7 +293,7 @@ when nothing is running yet:
 ```text
 ollama (http://localhost:11434): running — qwen3:1.7b, gemma3:1b
 llamacpp (http://localhost:8080/v1): offline — 3 model(s) already on disk: ggml-org/SmolLM3-3B-GGUF:Q4_K_M, ...
-mlx (http://127.0.0.1:8081/v1): offline — 7 model(s) already on disk: mlx-community/gemma-3-4b-it-4bit, ...
+mlx (http://localhost:8081/v1): offline — 7 model(s) already on disk: mlx-community/gemma-3-4b-it-4bit, ...
 
 No provider is serving right now. Start one:
   ollama    -> ollama serve
