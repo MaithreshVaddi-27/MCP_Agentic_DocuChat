@@ -314,7 +314,7 @@ async def upload_document(file_path: str | None, provider: str = "Llama.cpp"):
             message = await asyncio.to_thread(backend.load_document, str(destination))
         yield message, _status_text(refresh=True), _banner_text(), refresh_models(provider)
     except Exception as error:
-        yield f"Upload failed: {error}", _status_text(), _banner_text(), refresh_models(provider)
+        yield f"Sorry — that upload didn't work: {error}", _status_text(), _banner_text(), refresh_models(provider)
 
 
 async def rebuild_index(provider: str = "Llama.cpp"):
@@ -325,7 +325,7 @@ async def rebuild_index(provider: str = "Llama.cpp"):
     try:
         yield await asyncio.to_thread(backend.rebuild_index), _banner_text(), refresh_models(provider)
     except Exception as error:
-        yield f"Rebuild failed: {error}", _banner_text(), refresh_models(provider)
+        yield f"Sorry — rebuilding the index didn't work: {error}", _banner_text(), refresh_models(provider)
 
 
 async def switch_embeddings(choice: str):

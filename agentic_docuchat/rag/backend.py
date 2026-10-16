@@ -203,9 +203,9 @@ class RagBackend:
                 "EMBEDDING_PROVIDER=online requires GEMINI_API_KEY (used for the embedding API too)."
             )
         if self.retrieval_k <= 0 or self.retrieval_fetch_k <= 0:
-            raise RuntimeError("RETRIEVAL_K and RETRIEVAL_FETCH_K must be positive.")
+            raise RuntimeError("RETRIEVAL_K and RETRIEVAL_FETCH_K must be positive numbers in .env.")
         if self.retrieval_fetch_k < self.retrieval_k:
-            raise RuntimeError("RETRIEVAL_FETCH_K must be >= RETRIEVAL_K.")
+            raise RuntimeError("RETRIEVAL_FETCH_K must be >= RETRIEVAL_K in .env.")
         logger.info(
             "Config OK: embeddings=%s (%s), document=%s",
             self.embedding_provider,
