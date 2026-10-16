@@ -16,5 +16,5 @@
 ## Docs / config
 
 - [ ] No secrets committed (`.env`, `*.sqlite3`, PDFs, vectors)
-- [ ] `README.md` / `CHANGELOG.md` / `.env.example` updated if setup, env vars, or UI changed
+- [ ] `README.md` / `.env.example` updated if setup, env vars, or UI changed
 - [ ] Every new `os.getenv` has an `.env.example` entry
