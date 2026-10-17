@@ -1,8 +1,19 @@
 name: ci
 
 on:
+  # Only main takes the push path. A feature branch with an open PR is
+  # already covered by `pull_request` below, and because the two triggers
+  # use different refs they do not share a concurrency group — every push to
+  # a PR branch was therefore running this whole matrix twice.
   push:
+    branches: [main]
   pull_request:
+    # A markdown-only change cannot break an import or a test. Skip the
+    # four-version matrix for those instead of spending ~12 minutes of
+    # runner time on a typo fix. Anything that touches code still runs.
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
 
 # Least privilege by default: this workflow only ever reads the repo.
 permissions:
