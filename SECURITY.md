@@ -11,7 +11,10 @@
 
 **Don't open a public issue for security bugs.** Email the maintainer directly:
 
-- GitHub: [@MaithreshVaddi-27](https://github.com/MaithreshVaddi-27) (open a private security advisory on the repo if enabled, otherwise DM via a minimal non-sensitive issue asking for contact)
+- GitHub: [@MaithreshVaddi-27](https://github.com/MaithreshVaddi-27). Preferred path is
+  the repo's **Security → Report a vulnerability** form, which is private. If private
+  reporting is disabled on the repo, open a normal issue that carries *no* technical
+  detail — just a request for a private way to talk — and wait for a reply there.
 
 Include: what you found, which file/line, steps to reproduce, and impact.
 Expect an acknowledgement within 72 hours and a fix or mitigation plan within 14 days.

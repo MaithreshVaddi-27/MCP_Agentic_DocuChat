@@ -13,7 +13,7 @@ MLX — Google Gemini is there if you'd rather not run anything locally.
 [![CI](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions/workflows/ci.yml/badge.svg)](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![No API key needed](https://img.shields.io/badge/API_key-not_required-brightgreen.svg)](#option-b-use-google-gemini)
+[![No API key needed](https://img.shields.io/badge/API_key-not_required-brightgreen.svg)](#using-google-gemini)
 
 </div>
 
@@ -53,7 +53,7 @@ filling the gap.
 - [Choose how to answer](#choose-how-to-answer)
 - [Your first run](#your-first-run)
 - [Using the app](#using-the-app)
-- [Option B: use Google Gemini](#option-b-use-google-gemini)
+- [Using Google Gemini](#using-google-gemini)
 - [Finding models you already have](#finding-models-you-already-have)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
@@ -74,7 +74,7 @@ Three things. You probably have two already.
 3. **One way to run a model** — pick either:
    - **A local runtime.** [Ollama](https://ollama.com/download) is the easiest
      single install; llama.cpp and MLX work too.
-   - **A free Google Gemini key.** [About five minutes.](#option-b-use-google-gemini)
+   - **A free Google Gemini key.** [About five minutes.](#using-google-gemini)
 
 That is the only real decision. Everything else has a default that works offline.
 
@@ -263,7 +263,7 @@ without restarting.
 | **Ollama** | [ollama.com/download](https://ollama.com/download) | `ollama serve` | `http://localhost:11434` |
 | **llama.cpp** | [releases](https://github.com/ggml-org/llama.cpp/releases) | `llama-server -hf <repo> --port 8080` | `http://localhost:8080/v1` |
 | **MLX** (Apple Silicon) | `pipx install mlx-lm` | `mlx_lm.server --model <repo> --port 8081` | `http://localhost:8081/v1` |
-| **Gemini** (optional) | see [below](#option-b-use-google-gemini) | managed | managed |
+| **Gemini** (optional) | see [below](#using-google-gemini) | managed | managed |
 
 <details>
 <summary>Starting Ollama — the easiest path</summary>
@@ -374,7 +374,7 @@ tool-calling agent, which does not stream cleanly, so it returns in one go.
 
 ---
 
-## Option B: use Google Gemini
+## Using Google Gemini
 
 You do not need a key for anything above. If you would rather use **Google
 Gemini**, this is the whole process.
