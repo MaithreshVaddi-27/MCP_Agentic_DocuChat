@@ -11,7 +11,7 @@ MLX — Google Gemini is there if you'd rather not run anything locally.
 `Python 3.10+` · `MIT` · `no API key required`
 
 [![CI](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions/workflows/ci.yml/badge.svg)](https://github.com/MaithreshVaddi-27/MCP_Agentic_DocuChat/actions)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![No API key needed](https://img.shields.io/badge/API_key-not_required-brightgreen.svg)](#option-b-use-google-gemini)
 
@@ -68,7 +68,7 @@ filling the gap.
 
 Three things. You probably have two already.
 
-1. **Python 3.10, 3.11 or 3.12.** Tested on all three.
+1. **Python 3.10, 3.11, 3.12 or 3.13.** Tested on all four.
 2. **A few GB of free disk.** The embedding model downloads once (~1.3 GB) and
    is cached after that. Each chat model you add is a few GB more.
 3. **One way to run a model** — pick either:
@@ -584,7 +584,7 @@ directories, so it never depends on which models happen to be installed on the
 machine running it. Tests needing the full LangChain stack skip themselves
 cleanly in a light environment.
 
-CI runs this on Python 3.10 through 3.12, checks that the app boots with no
+CI runs this on Python 3.10 through 3.13, checks that the app boots with no
 document loaded, and builds and installs a wheel.
 
 ---
