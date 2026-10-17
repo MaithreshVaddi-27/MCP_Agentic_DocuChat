@@ -110,6 +110,10 @@ class RagBackend:
         self.embedding_model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5").strip()
         self.embedding_model_online = os.getenv("EMBEDDING_MODEL_ONLINE", "models/text-embedding-004").strip()
 
+        # Gemini runs hosted, so there is no local server to ask which model is
+        # loaded — hence no picker in the UI. GEMINI_MODEL in .env is the one
+        # place to change it; the literal below is only the fallback for a run
+        # with no .env at all.
         self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
         self.ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:4b").strip()
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()
