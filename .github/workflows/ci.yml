@@ -16,7 +16,10 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not `ubuntu-latest`: GitHub migrates that label to Ubuntu 26 on
+    # 2026-10-19, and an OS change landing mid-week is not something you want to
+    # discover from a red build. Move it forward on purpose, with a test run.
+    runs-on: ubuntu-24.04
     # Cold torch + transformers install is the bulk of this job's runtime.
     timeout-minutes: 30
     strategy:
@@ -24,8 +27,8 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           # requirements.txt is fully pinned, so the cache key changes
@@ -54,11 +57,11 @@ jobs:
           PY
 
   package:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
