@@ -377,10 +377,27 @@ class SubprocessTests(unittest.TestCase):
 
     def test_which_finds_a_binary_outside_path(self):
         # GUI launches can lack a login-shell PATH; homebrew/pipx dirs are tried.
-        with mock.patch.object(discovery.shutil, "which", return_value=None):
-            with mock.patch.object(discovery, "_EXTRA_BIN_DIRS", (Path("/opt/homebrew/bin"),)):
-                found = discovery._which("llama-server")
-        self.assertEqual(found, "/opt/homebrew/bin/llama-server")
+        # The candidate is stat'ed for real, so this has to point at a file we
+        # create — a hardcoded /opt/homebrew path passes only on a Mac that
+        # happens to have llama.cpp installed, and silently fails on CI.
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "llama-server"
+            binary.write_text("#!/bin/sh\n")
+            binary.chmod(0o755)
+            with mock.patch.object(discovery.shutil, "which", return_value=None):
+                with mock.patch.object(discovery, "_EXTRA_BIN_DIRS", (Path(tmp),)):
+                    found = discovery._which("llama-server")
+            self.assertEqual(found, str(binary))
+
+    def test_which_skips_a_non_executable_file(self):
+        # Present but not runnable is not a usable binary — must not be returned.
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "llama-server"
+            binary.write_text("#!/bin/sh\n")
+            binary.chmod(0o644)
+            with mock.patch.object(discovery.shutil, "which", return_value=None):
+                with mock.patch.object(discovery, "_EXTRA_BIN_DIRS", (Path(tmp),)):
+                    self.assertIsNone(discovery._which("llama-server"))
 
 
 if __name__ == "__main__":
