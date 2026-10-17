@@ -36,7 +36,7 @@ filling the gap.
 
 | | |
 |---|---|
-| **Answers with receipts** | Every reply lists the pages it drew on. No page citation, no answer — the app rewrites the draft once before giving up. |
+| **Answers with receipts** | Every reply lists the pages it drew on. With no page citation there is no answer; the app rewrites the draft once before giving up. |
 | **Three local runtimes** | Ollama, llama.cpp and MLX. Switch per question from the UI. No cloud round trip unless you ask for one. |
 | **It finds your models** | Asks each runtime what it has cached and prints the exact command to start the one you already downloaded. |
 | **Remembers context** | Durable facts are picked up automatically. Repeat questions come back instantly from a local cache. |
@@ -86,9 +86,9 @@ Every platform is the same four steps: create a virtual environment, install
 dependencies, optionally copy the env file, run. Pick your OS for exact commands.
 
 > [!IMPORTANT]
-> **Use a virtual environment.** Without one, `pip install` either fails or —
-> worse on a Homebrew Python — installs into the system interpreter. Every
-> command below assumes you are inside the venv.
+> **Use a virtual environment.** Without one, `pip install` either fails or, on
+> a Homebrew Python, installs into the system interpreter. Every command below
+> assumes you are inside the venv.
 
 ### macOS
 
@@ -187,7 +187,7 @@ Ollama ships its own GPU detection and needs none of this.
 sudo apt install -y poppler-utils      # pdftotext, handy for inspecting PDFs
 ```
 
-Not required — the app reads PDFs itself. Listed only because you may want it
+Not required. The app reads PDFs itself; it is listed only in case you want it
 for debugging a document that will not parse.
 
 </details>
@@ -252,7 +252,7 @@ Windows your realistic local options are Ollama and llama.cpp.
 | Windows | Ollama via `winget` | No build tools required |
 | Anything, no installs | Gemini | Free key, nothing runs locally |
 
-You can switch providers per question from the dropdown — no restart needed.
+You can switch providers per question from the dropdown. No restart needed.
 
 The app speaks to three OpenAI-compatible runtimes. Start whichever one you want;
 it detects the runtime, lists what that runtime serves, and lets you switch
@@ -312,7 +312,7 @@ In the app: **Provider → MLX**, then pick the served model.
 
 > [!NOTE]
 > The model server runs in a **separate terminal** and must stay open while you
-> chat. Closing it does not break anything — the app reports the runtime as
+> chat. Closing it does not break anything; the app reports the runtime as
 > offline and tells you how to start it again.
 
 ---
@@ -324,12 +324,12 @@ You have installed it and `python gradio_app.py` is running.
 1. **Open <http://127.0.0.1:7860>.** A setup column on the left, an empty
    conversation on the right.
 2. **Read the status panel.** On a fresh start it says no document is loaded.
-   That is the normal state, not an error — the app is waiting for your first PDF.
+   That is the normal state, not an error. The app is waiting for your first PDF.
 3. **Start a model server** in another terminal (e.g. `ollama serve`), or choose
    **Gemini** and add a key.
 4. **Upload a PDF and press Process document.** The first run downloads the
    embedding model (~1.3 GB), so give it a couple of minutes. Every later
-   document starts instantly — reopening the app with the same PDF skips
+   document starts instantly, and reopening the app with the same PDF skips
    re-embedding entirely.
 5. **Ask *"What are the main findings?"*** The answer arrives with a **Sources**
    list naming the pages it came from.
@@ -348,7 +348,7 @@ might change mid-session is there.
 | **Local model** | Lists what the running server actually reports. No restart needed to switch models. |
 | **Embeddings** | `Local` (on this machine) or `Online` (Google's API). See [the privacy note](#configuration). |
 | **Upload a PDF** → **Process document** | Reads, chunks and indexes the file. |
-| **Rebuild index** | Forces a fresh embed — needed after changing chunking or the embedding model. |
+| **Rebuild index** | Forces a fresh embed. Needed after changing chunking or the embedding model. |
 | 👍 / 👎 | Records feedback against the answer, stored locally. |
 | **Clear my chat & memory** | Wipes this User ID's history, saved facts and cached answers. |
 | **Export chat** | Downloads the transcript. |
@@ -356,7 +356,7 @@ might change mid-session is there.
 ### A few behaviours worth knowing
 
 **Repeats are instant.** A question you already asked comes back from a local
-cache keyed on your saved memories and the document — not on the chat history,
+cache keyed on your saved memories and the document, not on the chat history,
 which would change on every turn and never match. Useful when you are
 re-reading the same paper.
 
@@ -370,7 +370,7 @@ and llama.cpp stream tokens as they generate. The Gemini path runs as a
 tool-calling agent, which does not stream cleanly, so it returns in one go.
 
 **Nothing is configured by document path.** You upload PDFs through the UI.
-`data/` is git-ignored — your documents never reach the repository.
+`data/` is git-ignored, so your documents never reach the repository.
 
 ---
 
@@ -382,7 +382,7 @@ Gemini**, this is the whole process.
 **1. Get a key.** Go to
 [<https://aistudio.google.com/apikey>](https://aistudio.google.com/apikey), sign in
 with a Google account, click **Create API key**, and pick an existing Google Cloud
-project or let it make one. The key is shown once — copy it immediately.
+project or let it make one. The key is shown once; copy it immediately.
 
 **2. Put it in `.env`.** In the project folder:
 
@@ -412,7 +412,7 @@ Then choose **Gemini** in the app's Provider dropdown.
 > create a new one.
 
 The free tier is rate-limited. If you hit a quota, enable billing in AI Studio or
-switch back to a local model — nothing breaks either way.
+switch back to a local model; nothing breaks either way.
 
 ---
 
@@ -457,7 +457,7 @@ The same information appears in the app's status panel.
 ## Configuration
 
 Everything lives in `.env`. Restart the app after changing anything. PDFs are
-never configured here — you upload them through the UI.
+never configured here. You upload them through the UI.
 
 ### The ones you will actually change
 
@@ -478,8 +478,8 @@ never configured here — you upload them through the UI.
 
 > [!IMPORTANT]
 > **`EMBEDDING_PROVIDER=online` is the only setting that sends document text to a
-> third party.** Everything else — local providers, local embeddings, local
-> vector store, local chat history — stays on your machine. Leave it on `local`
+> third party.** Everything else (local providers, local embeddings, the local
+> vector store, local chat history) stays on your machine. Leave it on `local`
 > unless you have a reason not to.
 
 [`.env.example`](.env.example) documents all 43 variables, grouped and
@@ -493,9 +493,9 @@ matching entry there.
 
 The whole path, in the order it happens.
 
-1. **Upload.** The file is checked three ways — extension, a `%PDF-` magic-byte
-   header, and a size cap — so a renamed `.txt` fails with a readable message
-   instead of an exception from deep inside a PDF parser.
+1. **Upload.** The file is checked three ways: extension, a `%PDF-` magic-byte
+   header, and a size cap. A renamed `.txt` fails with a readable message instead
+   of an exception from deep inside a PDF parser.
 2. **Index.** Pages are split into overlapping 700-character chunks and embedded.
    Local embeddings go through a Hugging Face sentence-transformer; the model
    is cached on disk after the first download.
@@ -506,8 +506,8 @@ The whole path, in the order it happens.
    index. Superseded collections under our own prefix are swept on success.
 4. **Retrieve.** One MMR search returns the best passages. That single search
    feeds both the model and the Sources box, so the two can never disagree.
-5. **Assemble the context.** A CRAFT prompt — Context, Role, Action, Format,
-   Target — is packed using TOON (Token-Oriented Object Notation), which
+5. **Assemble the context.** A CRAFT prompt (Context, Role, Action, Format,
+   Target) is packed using TOON (Token-Oriented Object Notation), which
    declares `{source, page, text}` once per row instead of repeating the keys
    per chunk. That is where most of the token saving comes from.
 6. **Answer, then verify.** The draft is checked for a page citation. If it has
@@ -522,8 +522,8 @@ The whole path, in the order it happens.
 - The embedding model and chat model are built **once** and reused.
 - Runtime health checks are cached for a few seconds, not re-probed per message.
 - Reopening the app with the same PDF **skips re-embedding entirely**.
-- Model calls retry with exponential backoff — local servers routinely hiccup
-  while loading a model.
+- Model calls retry with exponential backoff, because local servers routinely
+  hiccup while loading a model.
 
 ### Graceful degradation
 
@@ -537,7 +537,7 @@ degrades to a message instead:
 | Optional provider package missing | A `RuntimeError` naming the exact `pip install` that fixes it. |
 | Composio unconfigured or failing | Web tools silently become an empty list. Retrieval is unaffected. |
 | Answer comes back empty | Explains that a reasoning model likely spent its budget, and suggests a non-thinking model. |
-| Chroma unhappy during housekeeping | Warns and moves on — a stale collection left on disk beats a failed index build. |
+| Chroma unhappy during housekeeping | Warns and moves on; a stale collection on disk beats a failed index build. |
 | No document loaded | The normal state of a fresh clone. The model picker, status and memory controls still work. |
 
 ---
@@ -546,7 +546,7 @@ degrades to a message instead:
 
 ```text
 MCP_Agentic_DocuChat/
-├── gradio_app.py               # entry point — the only file you run directly
+├── gradio_app.py               # entry point (the only file you run directly)
 ├── agentic_docuchat/
 │   ├── app.py                  # Gradio UI, event wiring, launch config
 │   ├── llm/
@@ -562,7 +562,7 @@ MCP_Agentic_DocuChat/
 │   └── mcp/
 │       └── tools.py            # Composio loading, fully isolated
 ├── eval/evaluate.py            # optional DeepEval quality harness
-├── tests/                      # 101 tests, self-contained
+├── tests/                      # 102 tests, self-contained
 └── .env.example                # every configuration variable, documented
 ```
 
@@ -576,7 +576,7 @@ New work extends it rather than introducing a parallel CLI or agent flow.
 ```bash
 python -m ruff check .                                # lint gate
 python -m compileall -q gradio_app.py agentic_docuchat eval tests
-python -m unittest discover -s tests -p 'test_*.py'   # 101 tests
+python -m unittest discover -s tests -p 'test_*.py'   # 102 tests
 ```
 
 The suite builds throwaway Ollama and Hugging Face layouts in temporary
@@ -597,7 +597,7 @@ Optional, and only needed if you want numbers rather than vibes.
 python eval/evaluate.py --document path/to/your-paper.pdf --provider llamacpp
 ```
 
-`--document` is required — the eval scores a specific PDF against a built-in
+`--document` is required. The eval scores a specific PDF against a built-in
 golden question set. `--provider` accepts `gemini`, `ollama`, `llamacpp` or
 `mlx` and defaults to `llamacpp`. Results cover faithfulness, answer relevancy
 and context precision.
@@ -620,7 +620,7 @@ falls back and tells you so.
 | "EMBEDDING_PROVIDER=online requires GEMINI_API_KEY" | Add the key, or switch embeddings back to `local`. |
 | Answers have no Sources | Set `ANSWER_LOOP_MAX_ATTEMPTS=2` and rebuild the index. |
 | Answers feel ungrounded | Raise `RETRIEVAL_K`, or use a larger chat model. |
-| Changed chunking, nothing changed | Press **Rebuild index** — the index is not automatic. |
+| Changed chunking, nothing changed | Press **Rebuild index**. The index is not automatic. |
 | Switching models changes nothing | Press **Refresh status** in the status panel. |
 | Slow on Apple Silicon | Use MLX instead of Ollama. |
 
@@ -639,7 +639,7 @@ Short version; the full policy is in [SECURITY.md](SECURITY.md).
 - The Gradio UI has **no login by default**. Set `GRADIO_USERNAME` and
   `GRADIO_PASSWORD` before exposing it to any network you do not trust.
   `GRADIO_SHARE=true` refuses to start without them.
-- The per-user rate limit is **in-memory** — it stops double-clicks, not
+- The per-user rate limit is **in-memory**: it stops double-clicks, not
   attackers.
 - PDFs are validated by extension, magic bytes and size, **not** malware
   scanned. Do not process untrusted PDFs on a sensitive machine.

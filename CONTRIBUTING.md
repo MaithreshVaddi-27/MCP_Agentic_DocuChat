@@ -20,7 +20,7 @@ cp .env.example .env        # Windows: copy .env.example .env
 ```bash
 python -m ruff check .                                # must be clean
 python -m compileall -q gradio_app.py agentic_docuchat eval tests
-python -m unittest discover -s tests -p 'test_*.py'   # must be OK — 101 tests, none skipped on a full install
+python -m unittest discover -s tests -p 'test_*.py'   # must be OK — 102 tests, none skipped on a full install
 ```
 
 The suite is self-contained: it builds throwaway Ollama / Hugging Face layouts in temp

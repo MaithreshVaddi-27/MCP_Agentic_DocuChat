@@ -7,7 +7,7 @@
 
 - [ ] `python -m ruff check .`
 - [ ] `python -m compileall -q gradio_app.py agentic_docuchat eval tests`
-- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (101 tests)
+- [ ] `python -m unittest discover -s tests -p 'test_*.py'` → OK (102 tests)
 - [ ] New behavior has a test that fails without this change
 - [ ] Manual run: `python gradio_app.py` + uploaded a PDF + asked a question
 - [ ] Provider touched: live-checked against the real runtime
