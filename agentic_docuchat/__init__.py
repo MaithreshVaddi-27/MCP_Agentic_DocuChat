@@ -7,4 +7,4 @@ like memory stay usable without loading heavy ML dependencies.
 This number must match ``project.version`` in pyproject.toml.
 """
 
-__version__ = "3.2.0"
+__version__ = "3.2.1"

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # Distribution name must be a valid PyPI identifier; the project's display
 # name everywhere else is MCP_Agentic_DocuChat.
 name = "agentic-docuchat"
-version = "3.2.0"
+version = "3.2.1"
 description = "MCP_Agentic_DocuChat — chat with your PDFs, locally and with page-cited receipts"
 readme = "README.md"
 requires-python = ">=3.10"
